@@ -15,3 +15,7 @@ USER_CREATED = {
 LOGGED_IN = {
     "message": "Logged in"
 }
+
+LOGGED_OUT = {
+    "message": "Logged out"
+}

@@ -12,5 +12,6 @@ VALUES ("9e5d0a6c-16c8-43bd-861e-91296e94ffa9", "test", "test_hash", 1709459026)
 
 DROP TABLE IF EXISTS revoked_tokens;
 CREATE TABLE IF NOT EXISTS revoked_tokens(
-    token                   TEXT PRIMARY KEY     NOT NULL
+    token                   TEXT PRIMARY KEY     NOT NULL,
+    expires                 INTEGER
 );

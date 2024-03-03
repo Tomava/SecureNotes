@@ -7,6 +7,7 @@ from flask import Flask, request, jsonify
 from flask_jwt_extended import (
     create_access_token,
     get_jwt_identity,
+    get_jwt,
     jwt_required,
     JWTManager,
 )
@@ -36,6 +37,7 @@ def dev_log(message):
         print(f"{datetime.datetime.now().replace(microsecond=0).isoformat()}: {message}")
 
 def get_database_result(database_name, statement):
+    dev_log(statement)
     con = sqlite3.connect(database_name)
     cur = con.cursor()
     res = cur.execute(statement)
@@ -68,12 +70,12 @@ def verify_password(saved_hash, password):
 def check_if_token_revoked(jwt_header, jwt_payload: dict) -> bool:
     dev_log(jwt_payload)
     issued_at = jwt_payload.get("iat")
-    username = jwt_payload.get("sub")
+    user_id = jwt_payload.get("sub")
     jti = jwt_payload.get("jti")
 
-    dev_log(f"{issued_at}, {username}, {jti}")
+    dev_log(f"{issued_at}, {user_id}, {jti}")
     # Check revoked tokens
-    # TODO: SQL injection here from 'iat' (not really, because the token are server generated). FIX: Use prepared statement
+    # TODO: Use prepared statement
     res = get_database_result(
         CREDENTIALS_DB,
         f'SELECT * FROM {REVOKED_TOKENS_TABLE} WHERE token == "{jti}"',
@@ -82,10 +84,10 @@ def check_if_token_revoked(jwt_header, jwt_payload: dict) -> bool:
         return True
 
     # Check that token is more recent than last password change
-    # TODO: SQL injection here from 'username'. FIX: Use prepared statement
+    # TODO: Use prepared statement
     res = get_database_result(
         CREDENTIALS_DB,
-        f'SELECT password_change_time FROM {USERS_TABLE} WHERE username == "{username}"',
+        f'SELECT password_change_time FROM {USERS_TABLE} WHERE id == "{user_id}"',
     )
 
     result = res.fetchone()
@@ -138,7 +140,7 @@ def login():
     # TODO: SQL injection here from 'username'. FIX: Use prepared statement
     res = get_database_result(
         CREDENTIALS_DB,
-        f'SELECT login_hash FROM {USERS_TABLE} WHERE username == "{username}"',
+        f'SELECT id, login_hash FROM {USERS_TABLE} WHERE username == "{username}"',
     )
 
     result = res.fetchone()
@@ -148,17 +150,33 @@ def login():
         # Hash a random password to introduce similar delay as in verify function
         hash_password(random.randint(0, 1000))
         return jsonify(messages.INVALID_CREDENTIALS_ERROR), 401
-
-    login_hash = result[0]
+    
+    used_id, login_hash = result
     if not verify_password(login_hash, password):
         return jsonify(messages.INVALID_CREDENTIALS_ERROR), 401
 
-    access_token = create_access_token(identity=username)
+    access_token = create_access_token(identity=used_id)
     message = messages.LOGGED_IN
     message["access_token"] = access_token
     return jsonify(message), 200
 
 
+@app.get("/logout")
+@jwt_required()
+def logout():
+    jwt = get_jwt()
+    issued_at = jwt.get("iat")
+    jti = jwt.get("jti")
+
+    # TODO: Use prepared statement
+    get_database_result(
+        CREDENTIALS_DB,
+        f'INSERT INTO revoked_tokens(token, expires) VALUES ("{jti}", {issued_at})'
+    )
+    return jsonify(messages.LOGGED_OUT), 200
+
+
+# TODO: Remove this, as it's only a test
 @app.route("/protected", methods=["GET"])
 @jwt_required()
 def test_secret():
