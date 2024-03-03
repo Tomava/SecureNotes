@@ -8,6 +8,11 @@ INVALID_CREDENTIALS_ERROR = {
     "message": "Credentials were invalid"
 }
 
+SERVER_ERROR = {
+    "error": "ServerError",
+    "message": "Error handling the request"
+}
+
 USER_CREATED = {
     "message": "User created"
 }

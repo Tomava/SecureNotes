@@ -36,12 +36,25 @@ def dev_log(message):
     if ENVIRONMENT == "dev":
         print(f"{datetime.datetime.now().replace(microsecond=0).isoformat()}: {message}")
 
-def get_database_result(database_name, statement):
+def get_database_result(database_name, statement, args):
     dev_log(statement)
-    con = sqlite3.connect(database_name)
-    cur = con.cursor()
-    res = cur.execute(statement)
-    con.commit()
+    try:
+        con = sqlite3.connect(database_name)
+        cur = con.cursor()
+        res = cur.execute(statement, args)
+        con.commit()
+    except NameError as err:
+        dev_log(err)
+        return None
+    except ValueError as err:
+        dev_log(err)
+        return None
+    except IOError as err:
+        dev_log(err)
+        return None
+    except sqlite3.Error as err:
+        dev_log(err)
+        return None
     return res
 
 
@@ -75,20 +88,30 @@ def check_if_token_revoked(jwt_header, jwt_payload: dict) -> bool:
 
     dev_log(f"{issued_at}, {user_id}, {jti}")
     # Check revoked tokens
-    # TODO: Use prepared statement
     res = get_database_result(
         CREDENTIALS_DB,
-        f'SELECT * FROM {REVOKED_TOKENS_TABLE} WHERE token == "{jti}"',
+        f"SELECT * FROM {REVOKED_TOKENS_TABLE} WHERE token == ?",
+        (jti,)
     )
+
+    # Error on SQL
+    if res is None:
+        return True
+
+    # Token revoked
     if res.fetchone() is not None:
         return True
 
     # Check that token is more recent than last password change
-    # TODO: Use prepared statement
     res = get_database_result(
         CREDENTIALS_DB,
-        f'SELECT password_change_time FROM {USERS_TABLE} WHERE id == "{user_id}"',
+        f"SELECT password_change_time FROM {USERS_TABLE} WHERE id == ?",
+        (user_id,)
     )
+
+    # Error on SQL
+    if res is None:
+        return True
 
     result = res.fetchone()
 
@@ -109,11 +132,17 @@ def sign_up():
     request_data = request.form
     username = request_data.get("username")
     password = request_data.get("password")
-    # TODO: SQL injection here from 'username'. FIX: Use prepared statement
+    # VULNERABILITY_FIX: Avoid SQL injection in 'username' with parameterized query
     res = get_database_result(
         CREDENTIALS_DB,
-        f'SELECT username FROM {USERS_TABLE} WHERE username == "{username}"',
+        f"SELECT username FROM {USERS_TABLE} WHERE username == ?",
+        (username,)
     )
+
+    # Error on SQL
+    if res is None:
+        return jsonify(messages.SERVER_ERROR), 500
+
     # Username already taken
     if res.fetchone() is not None:
         return jsonify(messages.USERNAME_TAKEN_ERROR), 409
@@ -121,12 +150,17 @@ def sign_up():
     password_hash = hash_password(password)
     uuid_value = uuid.uuid4()
     now = datetime.datetime.now().replace(microsecond=0)
-    # TODO: SQL injection here from 'username'. FIX: Use prepared statement
+    # VULNERABILITY_FIX: Avoid SQL injection in 'username' with parameterized query
     res = get_database_result(
         CREDENTIALS_DB,
-        f"""INSERT INTO {USERS_TABLE}(id, username, login_hash, password_change_time)
-        VALUES ("{uuid_value}", "{username}", "{password_hash}", "{now.timestamp()}");""",
+        f"""INSERT INTO {USERS_TABLE} (id, username, login_hash, password_change_time)
+        VALUES (?, ?, ?, ?);""",
+        (uuid_value, username, password_hash, now.timestamp(),)
     )
+
+    # Error on SQL
+    if res is None:
+        return jsonify(messages.SERVER_ERROR), 500
 
     return jsonify(messages.USER_CREATED), 201
 
@@ -137,18 +171,23 @@ def login():
     username = request_data.get("username")
     password = request_data.get("password")
 
-    # TODO: SQL injection here from 'username'. FIX: Use prepared statement
+    # VULNERABILITY_FIX: Avoid SQL injection in 'username' with parameterized query
     res = get_database_result(
         CREDENTIALS_DB,
-        f'SELECT id, login_hash FROM {USERS_TABLE} WHERE username == "{username}"',
+        f"SELECT id, login_hash FROM {USERS_TABLE} WHERE username == ?",
+        (username,)
     )
+
+    # Error on SQL
+    if res is None:
+        return jsonify(messages.SERVER_ERROR), 500
 
     result = res.fetchone()
 
     # Username not found
     if result is None:
         # Hash a random password to introduce similar delay as in verify function
-        hash_password(random.randint(0, 1000))
+        hash_password(str(uuid.uuid4()))
         return jsonify(messages.INVALID_CREDENTIALS_ERROR), 401
     
     used_id, login_hash = result
@@ -168,11 +207,16 @@ def logout():
     issued_at = jwt.get("iat")
     jti = jwt.get("jti")
 
-    # TODO: Use prepared statement
-    get_database_result(
+    res = get_database_result(
         CREDENTIALS_DB,
-        f'INSERT INTO revoked_tokens(token, expires) VALUES ("{jti}", {issued_at})'
+        f"INSERT INTO {REVOKED_TOKENS_TABLE}(token, expires) VALUES (?, ?)",
+        (jti, issued_at)
     )
+
+    # Error on SQL
+    if res is None:
+        return jsonify(messages.SERVER_ERROR), 500
+
     return jsonify(messages.LOGGED_OUT), 200
 
 
@@ -189,4 +233,4 @@ if __name__ == "__main__":
     if ENVIRONMENT == "prod":
         waitress.serve(app, host="0.0.0.0", port=8080)
     else:
-        app.run(debug=True)
+        app.run(debug=True, port=8080)
