@@ -1,7 +1,9 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useState } from "react";
-import { CONFIG } from "../../config";
+import { CONFIG } from "@/app/config";
+import { encryptString, uint8ArrayToHex } from "@/app/helpers";
+import bcrypt from "bcryptjs";
 
 type FormData = {
   username: "";
@@ -22,15 +24,36 @@ const Signup: React.FC = () => {
   const createAccount = async () => {
     const username = formData.username;
     const password = formData.password;
-    const sendingData = {username: username, password: password};
+    const saltRounds = 10;
+
+    // Create login hash to use for logging in
+    const loginSalt = bcrypt.genSaltSync(saltRounds);
+    const loginHash = bcrypt.hashSync(password, loginSalt);
+
+    // Create encryption hash to encrypt encryption key
+    const encryptionSalt = bcrypt.genSaltSync(saltRounds);
+    const encryptionHash = bcrypt.hashSync(password, encryptionSalt);
+
+    // Create encryption key and encrypt it
+    const buf = new Uint8Array(32);
+    crypto.getRandomValues(buf);
+    const encryptionKey = uint8ArrayToHex(buf);
+    const encryptedKey = encryptString(encryptionKey, encryptionHash);
+
+    const sendingData = {
+      username: username,
+      front_login_hash: loginHash,
+      encryption_salt: encryptionSalt,
+      encrypted_encryption_key: encryptedKey,
+    };
     const response = await fetch(
       `${CONFIG.NEXT_PUBLIC_BACKEND_ROOT}${CONFIG.NEXT_PUBLIC_BACKEND_SIGNUP}`,
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(sendingData)
+        body: JSON.stringify(sendingData),
       }
     );
   };
