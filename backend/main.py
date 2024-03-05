@@ -11,6 +11,7 @@ from flask_jwt_extended import (
     jwt_required,
     JWTManager,
 )
+from flask_cors import CORS, cross_origin
 import waitress
 from config import (
     ENVIRONMENT,
@@ -20,7 +21,8 @@ from config import (
     USERS_TABLE,
     REVOKED_TOKENS_TABLE,
     MAX_PASSWORD_LENGTH,
-    ACCESS_EXPIRES
+    ACCESS_EXPIRES,
+    PORT
 )
 import messages as messages
 import argon2
@@ -128,8 +130,9 @@ def check_if_token_revoked(jwt_header, jwt_payload: dict) -> bool:
 
 
 @app.post("/signup")
+@cross_origin()
 def sign_up():
-    request_data = request.form
+    request_data = request.get_json()
     username = request_data.get("username")
     password = request_data.get("password")
     # VULNERABILITY_FIX: Avoid SQL injection in 'username' with parameterized query
@@ -148,7 +151,7 @@ def sign_up():
         return jsonify(messages.USERNAME_TAKEN_ERROR), 409
 
     password_hash = hash_password(password)
-    uuid_value = uuid.uuid4()
+    uuid_value = str(uuid.uuid4())
     now = datetime.datetime.now().replace(microsecond=0)
     # VULNERABILITY_FIX: Avoid SQL injection in 'username' with parameterized query
     res = get_database_result(
@@ -157,7 +160,6 @@ def sign_up():
         VALUES (?, ?, ?, ?);""",
         (uuid_value, username, password_hash, now.timestamp(),)
     )
-
     # Error on SQL
     if res is None:
         return jsonify(messages.SERVER_ERROR), 500
@@ -166,8 +168,9 @@ def sign_up():
 
 
 @app.post("/login")
+@cross_origin()
 def login():
-    request_data = request.form
+    request_data = request.get_json()
     username = request_data.get("username")
     password = request_data.get("password")
 
@@ -202,6 +205,7 @@ def login():
 
 @app.get("/logout")
 @jwt_required()
+@cross_origin()
 def logout():
     jwt = get_jwt()
     issued_at = jwt.get("iat")
@@ -231,6 +235,6 @@ def test_secret():
 
 if __name__ == "__main__":
     if ENVIRONMENT == "prod":
-        waitress.serve(app, host="0.0.0.0", port=8080)
+        waitress.serve(app, host="0.0.0.0", port=PORT)
     else:
-        app.run(debug=True, port=8080)
+        app.run(debug=True, port=PORT)
