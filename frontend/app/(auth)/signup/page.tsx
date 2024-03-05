@@ -43,9 +43,11 @@ const Signup: React.FC = () => {
     const sendingData = {
       username: username,
       front_login_hash: loginHash,
+      front_login_salt: loginSalt,
       encryption_salt: encryptionSalt,
       encrypted_encryption_key: encryptedKey,
     };
+
     const response = await fetch(
       `${CONFIG.NEXT_PUBLIC_BACKEND_ROOT}${CONFIG.NEXT_PUBLIC_BACKEND_SIGNUP}`,
       {

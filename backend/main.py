@@ -134,7 +134,11 @@ def check_if_token_revoked(jwt_header, jwt_payload: dict) -> bool:
 def sign_up():
     request_data = request.get_json()
     username = request_data.get("username")
-    password = request_data.get("password")
+    front_login_hash = request_data.get("front_login_hash")
+    front_login_salt = request_data.get("front_login_salt")
+    encryption_salt = request_data.get("encryption_salt")
+    encrypted_encryption_key = request_data.get("encrypted_encryption_key")
+    #password = request_data.get("password")
     # VULNERABILITY_FIX: Avoid SQL injection in 'username' with parameterized query
     res = get_database_result(
         CREDENTIALS_DB,
@@ -150,15 +154,29 @@ def sign_up():
     if res.fetchone() is not None:
         return jsonify(messages.USERNAME_TAKEN_ERROR), 409
 
-    password_hash = hash_password(password)
+    password_hash = hash_password(front_login_hash)
     uuid_value = str(uuid.uuid4())
     now = datetime.datetime.now().replace(microsecond=0)
     # VULNERABILITY_FIX: Avoid SQL injection in 'username' with parameterized query
     res = get_database_result(
         CREDENTIALS_DB,
-        f"""INSERT INTO {USERS_TABLE} (id, username, login_hash, password_change_time)
-        VALUES (?, ?, ?, ?);""",
-        (uuid_value, username, password_hash, now.timestamp(),)
+        f"""INSERT INTO {USERS_TABLE} (
+            id,
+            username,
+            login_hash,
+            front_login_salt,
+            encryption_salt,
+            encrypted_encryption_key,
+            password_change_time
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?);""",
+        (uuid_value,
+         username,
+         password_hash,
+         front_login_salt,
+         encryption_salt,
+         encrypted_encryption_key,
+         now.timestamp(),)
     )
     # Error on SQL
     if res is None:
