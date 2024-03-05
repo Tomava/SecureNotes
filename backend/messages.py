@@ -3,6 +3,11 @@ USERNAME_TAKEN_ERROR = {
     "message": "Username is already in use"
 }
 
+USERNAME_NOT_FOUND_ERROR = {
+    "error": "UsernameNotFound",
+    "message": "Username not found"
+}
+
 INVALID_CREDENTIALS_ERROR = {
     "error": "InvalidCredentials",
     "message": "Credentials were invalid"
@@ -15,6 +20,10 @@ SERVER_ERROR = {
 
 USER_CREATED = {
     "message": "User created"
+}
+
+LOGIN_HASH = {
+    "message": "Login hash"
 }
 
 LOGGED_IN = {

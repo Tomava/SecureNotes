@@ -185,17 +185,44 @@ def sign_up():
     return jsonify(messages.USER_CREATED), 201
 
 
-@app.post("/login")
+@app.get("/hash")
 @cross_origin()
-def login():
-    request_data = request.get_json()
-    username = request_data.get("username")
-    password = request_data.get("password")
+def hash():
+    username = request.args.get("username")
+    dev_log(username)
 
     # VULNERABILITY_FIX: Avoid SQL injection in 'username' with parameterized query
     res = get_database_result(
         CREDENTIALS_DB,
-        f"SELECT id, login_hash FROM {USERS_TABLE} WHERE username == ?",
+        f"SELECT front_login_salt FROM {USERS_TABLE} WHERE username == ?",
+        (username,)
+    )
+
+    # Error on SQL
+    if res is None:
+        return jsonify(messages.SERVER_ERROR), 500
+
+    result = res.fetchone()
+
+    # Username not found
+    if result is None:
+        return jsonify(messages.USERNAME_NOT_FOUND_ERROR), 404
+    
+    front_login_salt = result[0]
+    message = messages.LOGIN_HASH
+    message["data"] = { "front_login_salt": front_login_salt }
+    return jsonify(message), 200
+
+@app.get("/login")
+@cross_origin()
+def login():
+    username = request.args.get("username")
+    front_login_hash = request.args.get("front_login_hash")
+
+    # VULNERABILITY_FIX: Avoid SQL injection in 'username' with parameterized query
+    res = get_database_result(
+        CREDENTIALS_DB,
+        f"SELECT id, login_hash, encryption_salt, encrypted_encryption_key FROM {USERS_TABLE} WHERE username == ?",
         (username,)
     )
 
@@ -211,13 +238,18 @@ def login():
         hash_password(str(uuid.uuid4()))
         return jsonify(messages.INVALID_CREDENTIALS_ERROR), 401
     
-    used_id, login_hash = result
-    if not verify_password(login_hash, password):
+    used_id, login_hash, encryption_salt, encrypted_encryption_key = result
+    if not verify_password(login_hash, front_login_hash):
         return jsonify(messages.INVALID_CREDENTIALS_ERROR), 401
 
     access_token = create_access_token(identity=used_id)
     message = messages.LOGGED_IN
-    message["access_token"] = access_token
+    # TODO: Set access token as HTTP only cookie instead of passing it in the data
+    message["data"] = {
+        "access_token": access_token,
+        "encryption_salt": encryption_salt,
+        "encrypted_encryption_key": encrypted_encryption_key
+    }
     return jsonify(message), 200
 
 
