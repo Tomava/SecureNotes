@@ -13,6 +13,11 @@ INVALID_CREDENTIALS_ERROR = {
     "message": "Credentials were invalid"
 }
 
+UNAUTHORIZED_ERROR = {
+    "error": "Unauthorized",
+    "message": "Unauthorized"
+}
+
 SERVER_ERROR = {
     "error": "ServerError",
     "message": "Error handling the request"

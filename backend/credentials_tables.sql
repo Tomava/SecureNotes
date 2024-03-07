@@ -29,8 +29,9 @@ VALUES (
     1709459026
 );
 
-DROP TABLE IF EXISTS revoked_tokens;
-CREATE TABLE IF NOT EXISTS revoked_tokens(
+DROP TABLE IF EXISTS tokens;
+CREATE TABLE IF NOT EXISTS tokens(
     token                   TEXT PRIMARY KEY     NOT NULL,
-    expires                 INTEGER
+    user_id                 TEXT                 NOT NULL,
+    created_at              INTEGER              NOT NULL
 );

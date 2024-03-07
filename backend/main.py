@@ -1,27 +1,18 @@
 import datetime
-import os
-import random
+import secrets
 import sqlite3
 import uuid
+from functools import wraps
 from flask import Flask, request, jsonify
-from flask_jwt_extended import (
-    create_access_token,
-    get_jwt_identity,
-    get_jwt,
-    jwt_required,
-    JWTManager,
-)
 from flask_cors import CORS, cross_origin
 import waitress
 from config import (
     ENVIRONMENT,
     SECRET_KEY,
-    JWT_SECRET_KEY,
     CREDENTIALS_DB,
     USERS_TABLE,
-    REVOKED_TOKENS_TABLE,
+    TOKENS_TABLE,
     MAX_PASSWORD_LENGTH,
-    ACCESS_EXPIRES,
     PORT
 )
 import messages as messages
@@ -29,14 +20,33 @@ import argon2
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = SECRET_KEY
-app.config["JWT_SECRET_KEY"] = JWT_SECRET_KEY
-app.config["JWT_ACCESS_TOKEN_EXPIRES"] = ACCESS_EXPIRES
-jwt = JWTManager(app)
+
+
+def login_required(f):
+    @wraps(f)
+    def check_user_login(*args, **kwargs):
+        session = request.cookies.get("session")
+        if session is None:
+            return jsonify(messages.UNAUTHORIZED_ERROR), 401
+
+
+        res = get_database_result(
+            CREDENTIALS_DB,
+            f"SELECT user_id FROM {TOKENS_TABLE} WHERE token == ?",
+            (session,)
+        )
+
+        if res is None or res.fetchone() is None:
+            return jsonify(messages.UNAUTHORIZED_ERROR), 401
+    
+        return f(*args, **kwargs)
+    return check_user_login
 
 
 def dev_log(message):
     if ENVIRONMENT == "dev":
         print(f"{datetime.datetime.now().replace(microsecond=0).isoformat()}: {message}")
+
 
 def get_database_result(database_name, statement, args):
     dev_log(statement)
@@ -79,54 +89,6 @@ def verify_password(saved_hash, password):
         return True
     except argon2.exceptions.VerifyMismatchError:
         return False
-
-
-@jwt.token_in_blocklist_loader
-def check_if_token_revoked(jwt_header, jwt_payload: dict) -> bool:
-    dev_log(jwt_payload)
-    issued_at = jwt_payload.get("iat")
-    user_id = jwt_payload.get("sub")
-    jti = jwt_payload.get("jti")
-
-    dev_log(f"{issued_at}, {user_id}, {jti}")
-    # Check revoked tokens
-    res = get_database_result(
-        CREDENTIALS_DB,
-        f"SELECT * FROM {REVOKED_TOKENS_TABLE} WHERE token == ?",
-        (jti,)
-    )
-
-    # Error on SQL
-    if res is None:
-        return True
-
-    # Token revoked
-    if res.fetchone() is not None:
-        return True
-
-    # Check that token is more recent than last password change
-    res = get_database_result(
-        CREDENTIALS_DB,
-        f"SELECT password_change_time FROM {USERS_TABLE} WHERE id == ?",
-        (user_id,)
-    )
-
-    # Error on SQL
-    if res is None:
-        return True
-
-    result = res.fetchone()
-
-    # Username not found
-    if result is None:
-        return False
-    
-    change_time = result[0]
-
-    if issued_at < change_time:
-        return True
-
-    return False
 
 
 @app.post("/signup")
@@ -213,6 +175,7 @@ def hash():
     message["data"] = { "front_login_salt": front_login_salt }
     return jsonify(message), 200
 
+
 @app.get("/login")
 @cross_origin()
 def login():
@@ -238,48 +201,62 @@ def login():
         hash_password(str(uuid.uuid4()))
         return jsonify(messages.INVALID_CREDENTIALS_ERROR), 401
     
-    used_id, login_hash, encryption_salt, encrypted_encryption_key = result
+    user_id, login_hash, encryption_salt, encrypted_encryption_key = result
     if not verify_password(login_hash, front_login_hash):
         return jsonify(messages.INVALID_CREDENTIALS_ERROR), 401
+    
+    session_token = secrets.token_hex(32)
 
-    access_token = create_access_token(identity=used_id)
     message = messages.LOGGED_IN
-    # TODO: Set access token as HTTP only cookie instead of passing it in the data
     message["data"] = {
-        "access_token": access_token,
         "encryption_salt": encryption_salt,
         "encrypted_encryption_key": encrypted_encryption_key
     }
-    return jsonify(message), 200
 
-
-@app.get("/logout")
-@jwt_required()
-@cross_origin()
-def logout():
-    jwt = get_jwt()
-    issued_at = jwt.get("iat")
-    jti = jwt.get("jti")
+    now = datetime.datetime.now().replace(microsecond=0)
 
     res = get_database_result(
         CREDENTIALS_DB,
-        f"INSERT INTO {REVOKED_TOKENS_TABLE}(token, expires) VALUES (?, ?)",
-        (jti, issued_at)
+        f"""INSERT INTO {TOKENS_TABLE} (
+            token,
+            user_id,
+            created_at
+        )
+        VALUES (?, ?, ?);""",
+        (session_token,
+         user_id,
+         now.timestamp(),)
     )
 
     # Error on SQL
     if res is None:
         return jsonify(messages.SERVER_ERROR), 500
 
+    response = jsonify(message)
+    response.set_cookie("session", session_token, httponly=True)
+    return response, 200
+
+
+@app.get("/logout")
+@cross_origin()
+@login_required
+def logout():
+    session = request.cookies.get("session")
+
+    res = get_database_result(
+        CREDENTIALS_DB,
+        f"DELETE FROM {TOKENS_TABLE} WHERE token == ?",
+        (session,)
+    )
+
     return jsonify(messages.LOGGED_OUT), 200
 
 
 # TODO: Remove this, as it's only a test
 @app.route("/protected", methods=["GET"])
-@jwt_required()
+@cross_origin()
+@login_required
 def test_secret():
-    current_user = get_jwt_identity()
-    dev_log(current_user)
     return jsonify({"message": "success"}), 200
 
 
