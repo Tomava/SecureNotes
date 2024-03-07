@@ -54,8 +54,9 @@ const Login: React.FC = () => {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
+        },
+        credentials: "include"
         }
-      }
     );
 
     const loginData = (await response2.json()).data;
