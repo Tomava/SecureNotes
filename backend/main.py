@@ -2,19 +2,12 @@ import datetime
 import secrets
 import sqlite3
 import uuid
+import psycopg2
 from functools import wraps
 from flask import Flask, request, jsonify
 from flask_cors import CORS, cross_origin
 import waitress
-from config import (
-    ENVIRONMENT,
-    SECRET_KEY,
-    CREDENTIALS_DB,
-    USERS_TABLE,
-    TOKENS_TABLE,
-    MAX_PASSWORD_LENGTH,
-    PORT
-)
+from config import *
 import messages as messages
 import argon2
 
@@ -29,14 +22,18 @@ def login_required(f):
         if session is None:
             return jsonify(messages.UNAUTHORIZED_ERROR), 401
 
+        try:
+            res = get_database_result(
+                CREDENTIALS_DB,
+                f"SELECT user_id FROM {TOKENS_TABLE} WHERE token =(%s)",
+                (session,),
+                fetch=True
+            )
+        except psycopg2.Error as e:
+            dev_log(e)
+            return jsonify(messages.SERVER_ERROR), 500
 
-        res = get_database_result(
-            CREDENTIALS_DB,
-            f"SELECT user_id FROM {TOKENS_TABLE} WHERE token == ?",
-            (session,)
-        )
-
-        if res is None or res.fetchone() is None:
+        if res is None:
             return jsonify(messages.UNAUTHORIZED_ERROR), 401
     
         return f(*args, **kwargs)
@@ -48,25 +45,21 @@ def dev_log(message):
         print(f"{datetime.datetime.now().replace(microsecond=0).isoformat()}: {message}")
 
 
-def get_database_result(database_name, statement, args):
+def get_database_result(database_name, statement, args, fetch=False):
     dev_log(statement)
-    try:
-        con = sqlite3.connect(database_name)
-        cur = con.cursor()
-        res = cur.execute(statement, args)
-        con.commit()
-    except NameError as err:
-        dev_log(err)
-        return None
-    except ValueError as err:
-        dev_log(err)
-        return None
-    except IOError as err:
-        dev_log(err)
-        return None
-    except sqlite3.Error as err:
-        dev_log(err)
-        return None
+    con = psycopg2.connect(database=POSTGRES_DB,
+                            user=POSTGRES_USER,
+                            host=DB_HOST,
+                            password=POSTGRES_PASSWORD,
+                            port=DB_PORT)
+    cur = con.cursor()
+    cur.execute(statement, args)
+    res = None
+    if fetch:
+        res = cur.fetchone()
+    con.commit()
+    cur.close()
+    con.close()
     return res
 
 
@@ -102,46 +95,48 @@ def sign_up():
     encrypted_encryption_key = request_data.get("encrypted_encryption_key")
     #password = request_data.get("password")
     # VULNERABILITY_FIX: Avoid SQL injection in 'username' with parameterized query
-    res = get_database_result(
-        CREDENTIALS_DB,
-        f"SELECT username FROM {USERS_TABLE} WHERE username == ?",
-        (username,)
-    )
-
-    # Error on SQL
-    if res is None:
+    try:
+        res = get_database_result(
+            CREDENTIALS_DB,
+            f"SELECT username FROM {USERS_TABLE} WHERE username = (%s)",
+            (username,),
+            fetch=True
+        )
+    except psycopg2.Error as e:
+        dev_log(e)
         return jsonify(messages.SERVER_ERROR), 500
 
     # Username already taken
-    if res.fetchone() is not None:
+    if res is not None:
         return jsonify(messages.USERNAME_TAKEN_ERROR), 409
 
     password_hash = hash_password(front_login_hash)
     uuid_value = str(uuid.uuid4())
     now = datetime.datetime.now().replace(microsecond=0)
     # VULNERABILITY_FIX: Avoid SQL injection in 'username' with parameterized query
-    res = get_database_result(
-        CREDENTIALS_DB,
-        f"""INSERT INTO {USERS_TABLE} (
-            id,
+    try:
+        get_database_result(
+            CREDENTIALS_DB,
+            f"""INSERT INTO {USERS_TABLE} (
+                id,
+                username,
+                login_hash,
+                front_login_salt,
+                encryption_salt,
+                encrypted_encryption_key,
+                password_change_time
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s);""",
+            (uuid_value,
             username,
-            login_hash,
+            password_hash,
             front_login_salt,
             encryption_salt,
             encrypted_encryption_key,
-            password_change_time
+            now.timestamp(),)
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?);""",
-        (uuid_value,
-         username,
-         password_hash,
-         front_login_salt,
-         encryption_salt,
-         encrypted_encryption_key,
-         now.timestamp(),)
-    )
-    # Error on SQL
-    if res is None:
+    except psycopg2.Error as e:
+        dev_log(e)
         return jsonify(messages.SERVER_ERROR), 500
 
     return jsonify(messages.USER_CREATED), 201
@@ -154,23 +149,22 @@ def hash():
     dev_log(username)
 
     # VULNERABILITY_FIX: Avoid SQL injection in 'username' with parameterized query
-    res = get_database_result(
-        CREDENTIALS_DB,
-        f"SELECT front_login_salt FROM {USERS_TABLE} WHERE username == ?",
-        (username,)
-    )
-
-    # Error on SQL
-    if res is None:
+    try:
+        res = get_database_result(
+            CREDENTIALS_DB,
+            f"SELECT front_login_salt FROM {USERS_TABLE} WHERE username = (%s)",
+            (username,),
+            fetch=True
+        )
+    except psycopg2.Error as e:
+        dev_log(e)
         return jsonify(messages.SERVER_ERROR), 500
 
-    result = res.fetchone()
-
     # Username not found
-    if result is None:
+    if res is None:
         return jsonify(messages.USERNAME_NOT_FOUND_ERROR), 404
     
-    front_login_salt = result[0]
+    front_login_salt = res[0]
     message = messages.LOGIN_HASH
     message["data"] = { "front_login_salt": front_login_salt }
     return jsonify(message), 200
@@ -183,17 +177,17 @@ def login():
     front_login_hash = request.args.get("front_login_hash")
 
     # VULNERABILITY_FIX: Avoid SQL injection in 'username' with parameterized query
-    res = get_database_result(
-        CREDENTIALS_DB,
-        f"SELECT id, login_hash, encryption_salt, encrypted_encryption_key FROM {USERS_TABLE} WHERE username == ?",
-        (username,)
-    )
-
-    # Error on SQL
-    if res is None:
+    try:
+        result = get_database_result(
+            CREDENTIALS_DB,
+            f"SELECT id, login_hash, encryption_salt, encrypted_encryption_key FROM {USERS_TABLE} WHERE username = (%s)",
+            (username,),
+            fetch=True
+        )
+    except psycopg2.Error as e:
+        dev_log(e)
         return jsonify(messages.SERVER_ERROR), 500
 
-    result = res.fetchone()
 
     # Username not found
     if result is None:
@@ -215,21 +209,21 @@ def login():
 
     now = datetime.datetime.now().replace(microsecond=0)
 
-    res = get_database_result(
-        CREDENTIALS_DB,
-        f"""INSERT INTO {TOKENS_TABLE} (
-            token,
+    try:
+        get_database_result(
+            CREDENTIALS_DB,
+            f"""INSERT INTO {TOKENS_TABLE} (
+                token,
+                user_id,
+                created_at
+            )
+            VALUES (%s, %s, %s);""",
+            (session_token,
             user_id,
-            created_at
+            now.timestamp(),)
         )
-        VALUES (?, ?, ?);""",
-        (session_token,
-         user_id,
-         now.timestamp(),)
-    )
-
-    # Error on SQL
-    if res is None:
+    except psycopg2.Error as e:
+        dev_log(e)
         return jsonify(messages.SERVER_ERROR), 500
 
     response = jsonify(message)
@@ -242,13 +236,15 @@ def login():
 @login_required
 def logout():
     session = request.cookies.get("session")
-
-    res = get_database_result(
-        CREDENTIALS_DB,
-        f"DELETE FROM {TOKENS_TABLE} WHERE token == ?",
-        (session,)
-    )
-
+    try:
+        get_database_result(
+            CREDENTIALS_DB,
+            f"DELETE FROM {TOKENS_TABLE} WHERE token = (%s)",
+            (session,)
+        )
+    except psycopg2.Error as e:
+        dev_log(e)
+        return jsonify(messages.SERVER_ERROR), 500
     return jsonify(messages.LOGGED_OUT), 200
 
 
@@ -264,4 +260,4 @@ if __name__ == "__main__":
     if ENVIRONMENT == "prod":
         waitress.serve(app, host="0.0.0.0", port=PORT)
     else:
-        app.run(debug=True, port=PORT)
+        app.run(host="0.0.0.0", debug=True, port=PORT)
