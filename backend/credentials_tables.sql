@@ -33,5 +33,6 @@ DROP TABLE IF EXISTS tokens;
 CREATE TABLE IF NOT EXISTS tokens(
     token                   TEXT PRIMARY KEY     NOT NULL,
     user_id                 TEXT                 NOT NULL,
-    created_at              INTEGER              NOT NULL
+    created_at              INTEGER              NOT NULL,
+    FOREIGN KEY(user_id)    REFERENCES users(id)
 );
