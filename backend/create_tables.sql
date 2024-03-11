@@ -46,32 +46,32 @@ CREATE TABLE IF NOT EXISTS notes(
     FOREIGN KEY(owner_id)   REFERENCES users(id)
 );
 
-INSERT INTO notes(
-    note_id,
-    owner_id,
-    created_at,
-    modified_at,
-    note_data
-)
-VALUES (
-    'b1e0d193-1fc2-422a-9761-f20518b3ba6e',
-    '9e5d0a6c-16c8-43bd-861e-91296e94ffa9',
-    1710159005,
-    1710159005,
-    E'\\xCDCDCDCD'
-);
+-- INSERT INTO notes(
+--     note_id,
+--     owner_id,
+--     created_at,
+--     modified_at,
+--     note_data
+-- )
+-- VALUES (
+--     'b1e0d193-1fc2-422a-9761-f20518b3ba6e',
+--     '9e5d0a6c-16c8-43bd-861e-91296e94ffa9',
+--     1710159005,
+--     1710159005,
+--     E'\\xCDCDCDCD'
+-- );
 
-INSERT INTO notes(
-    note_id,
-    owner_id,
-    created_at,
-    modified_at,
-    note_data
-)
-VALUES (
-    '8f6926ca-59ed-4116-a8ab-b212448bec16',
-    '9e5d0a6c-16c8-43bd-861e-91296e94ffa9',
-    1710159168,
-    1710159168,
-    E'\\xDCDCDCDC'
-);
+-- INSERT INTO notes(
+--     note_id,
+--     owner_id,
+--     created_at,
+--     modified_at,
+--     note_data
+-- )
+-- VALUES (
+--     '8f6926ca-59ed-4116-a8ab-b212448bec16',
+--     '9e5d0a6c-16c8-43bd-861e-91296e94ffa9',
+--     1710159168,
+--     1710159168,
+--     E'\\xDCDCDCDC'
+-- );

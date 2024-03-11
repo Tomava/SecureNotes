@@ -9,18 +9,28 @@ import {
 } from "react";
 import { CONFIG } from "@/app/config";
 import { decryptString, encryptString, uint8ArrayToHex } from "@/app/helpers";
-import bcrypt from "bcryptjs";
+import Note from "@/components/note";
+import styles from './page.module.css'
 
-type NotesData = {
+export type NoteData = {
+  title: string;
+  body: string;
+};
+
+export type ParsedNoteData = {
   createdAt: number;
   modifiedAt: number;
-  noteData: string;
+  noteData: NoteData;
   noteId: string;
 };
 
 const Notes: React.FC = () => {
-  const [notes, setNotes] = useState<NotesData[]>([]);
+  const [notes, setNotes] = useState<ParsedNoteData[]>([]);
   const [encryptionKey, setEncryptionKey] = useState("");
+  const [formData, setFormData] = useState<NoteData>({
+    title: "",
+    body: "",
+  });
 
   useEffect(() => {
     const encKey = localStorage.getItem("encryptionKey");
@@ -29,41 +39,136 @@ const Notes: React.FC = () => {
     }
   }, []);
 
-  const fetchData = useCallback(async () => {
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!encryptionKey) {
+        return;
+      }
+      const formatNoteData = (encryptedData: string) => {
+        if (encryptionKey) {
+          const decryptedData: NoteData = JSON.parse(
+            decryptString(encryptedData, encryptionKey)
+          );
+          return decryptedData;
+        }
+        return { title: "", body: "" };
+      };
+      const response = await fetch(
+        `${CONFIG.NEXT_PUBLIC_BACKEND_ROOT}${CONFIG.NEXT_PUBLIC_BACKEND_NOTES}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+        }
+      );
+      const responseData = (await response.json()).data;
+      if (responseData && responseData.notes) {
+        setNotes(
+          responseData.notes.map((note: any) => ({
+            createdAt: note.created_at,
+            modifiedAt: note.modified_at,
+            noteData: formatNoteData(note.note_data),
+            noteId: note.note_id,
+          }))
+        );
+      }
+    };
+    fetchData().catch(console.error);
+  }, [encryptionKey]);
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    await createNote();
+  };
+
+  const createNote = async () => {
+    const title = formData.title;
+    const body = formData.body;
+
+    const data = {
+      title: title,
+      body: body,
+    };
+
+    if (!encryptionKey) {
+      console.error("Can't encrypt without encryption key!");
+      return;
+    }
+    const encryptedNote = encryptString(JSON.stringify(data), encryptionKey);
+
+    const sendingData = {
+      note_data: encryptedNote,
+    };
+
     const response = await fetch(
       `${CONFIG.NEXT_PUBLIC_BACKEND_ROOT}${CONFIG.NEXT_PUBLIC_BACKEND_NOTES}`,
       {
-        method: "GET",
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        body: JSON.stringify(sendingData),
         credentials: "include",
       }
     );
-    const responseData = (await response.json()).data;
-    if (responseData && responseData.notes) {
-      setNotes(
-        responseData.notes.map((note: any) => ({
-          createdAt: note.created_at,
-          modifiedAt: note.modified_at,
-          noteData: note.note_data,
-          noteId: note.note_id,
-        }))
-      );
-    }
-  }, []);
 
-  useEffect(() => {
-    fetchData().catch(console.error);
-  }, [fetchData]);
+    const responseData = (await response.json()).data;
+
+    const addedNote = {
+      createdAt: responseData.created_at,
+      modifiedAt: responseData.modified_at,
+      noteData: data,
+      noteId: responseData.note_id,
+    };
+    setNotes([...notes, addedNote]);
+  };
+
+  const handleChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
 
   return (
-    <main>
+    <main className={styles.main}>
+      <div id="new-note">
+        <h2>Create new</h2>
+        <form method="post" onSubmit={handleSubmit}>
+          <label htmlFor="title">Title:</label>
+          <br />
+          <input
+            type="text"
+            id="title"
+            name="title"
+            value={formData.title}
+            onChange={handleChange}
+          />
+          <br />
+          <label htmlFor="body">Body:</label>
+          <br />
+          <textarea
+            id="body"
+            name="body"
+            value={formData.body}
+            onChange={handleChange}
+          />
+          <br />
+          <input type="submit" value="Create" />
+        </form>
+      </div>
       <div id="notes">
         <h2>Notes</h2>
-        {notes.map((note) => (
-          <p key={note.noteId}>{note.noteData}</p>
-        ))}
+        <ul id="notesList" className={styles.notesList}>
+          {notes.map((note) => (
+            <Note key={note.noteId} noteData={note} />
+          ))}
+        </ul>
       </div>
     </main>
   );

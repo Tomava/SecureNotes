@@ -13,6 +13,11 @@ INVALID_CREDENTIALS_ERROR = {
     "message": "Credentials were invalid"
 }
 
+INVALID_PARAMETERS_ERROR = {
+    "error": "InvalidParameters",
+    "message": "Parameters were invalid"
+}
+
 UNAUTHORIZED_ERROR = {
     "error": "Unauthorized",
     "message": "Unauthorized"
@@ -25,6 +30,10 @@ SERVER_ERROR = {
 
 USER_CREATED = {
     "message": "User created"
+}
+
+NOTE_CREATED = {
+    "message": "Note created"
 }
 
 LOGIN_HASH = {
