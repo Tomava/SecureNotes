@@ -1,3 +1,4 @@
+import base64
 import datetime
 import secrets
 import sqlite3
@@ -13,7 +14,6 @@ import argon2
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = SECRET_KEY
-
 
 def login_required(f):
     @wraps(f)
@@ -45,7 +45,7 @@ def dev_log(message):
         print(f"{datetime.datetime.now().replace(microsecond=0).isoformat()}: {message}")
 
 
-def get_database_result(database_name, statement, args, fetch=False):
+def get_database_result(database_name, statement, args, fetch=False, fetch_all=False):
     dev_log(statement)
     con = psycopg2.connect(database=POSTGRES_DB,
                             user=POSTGRES_USER,
@@ -55,7 +55,9 @@ def get_database_result(database_name, statement, args, fetch=False):
     cur = con.cursor()
     cur.execute(statement, args)
     res = None
-    if fetch:
+    if fetch_all:
+        res = cur.fetchall()
+    elif fetch:
         res = cur.fetchone()
     con.commit()
     cur.close()
@@ -246,6 +248,48 @@ def logout():
         dev_log(e)
         return jsonify(messages.SERVER_ERROR), 500
     return jsonify(messages.LOGGED_OUT), 200
+
+
+@app.route("/notes", methods=["GET", "POST", "PUT"])
+@cross_origin()
+@login_required
+def notes():
+    method = request.method
+    session = request.cookies.get("session")
+    res = get_database_result(
+        CREDENTIALS_DB,
+        f"SELECT user_id FROM {TOKENS_TABLE} WHERE token =(%s)",
+        (session,),
+        fetch=True
+    )
+    current_user = res[0]
+    if method == "GET":
+        try:
+            res = get_database_result(
+                CREDENTIALS_DB,
+                f"SELECT note_id, created_at, modified_at, note_data FROM {NOTES_TABLE} WHERE owner_id = (%s)",
+                (current_user,),
+                fetch_all=True
+            )
+        except psycopg2.Error as e:
+            dev_log(e)
+            return jsonify(messages.SERVER_ERROR), 500
+        notes_list = []
+        for result in res:
+            note_id, created_at, modified_at, note_data = result
+            notes_list.append({
+                "note_id": note_id,
+                "created_at": created_at,
+                "modified_at": modified_at,
+                "note_data": base64.b64encode(note_data).decode("utf-8")
+            })
+        message = messages.DATA_FETCHED
+        message["data"] = {
+            "notes": notes_list
+        }
+        return jsonify(message), 200
+
+    return jsonify({"message": "success"}), 200
 
 
 # TODO: Remove this, as it's only a test

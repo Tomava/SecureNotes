@@ -19,9 +19,8 @@ const Login: React.FC = () => {
   const [encryptionKey, setEncryptionKey] = useState("");
 
   useEffect(() => {
-    localStorage.setItem('encryptionKey', JSON.stringify(encryptionKey));
+    localStorage.setItem("encryptionKey", encryptionKey);
   }, [encryptionKey]);
-
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -55,8 +54,8 @@ const Login: React.FC = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include"
-        }
+        credentials: "include",
+      }
     );
 
     const loginData = (await response2.json()).data;

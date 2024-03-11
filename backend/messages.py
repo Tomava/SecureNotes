@@ -38,3 +38,7 @@ LOGGED_IN = {
 LOGGED_OUT = {
     "message": "Logged out"
 }
+
+DATA_FETCHED = {
+    "message": "Data fetched"
+}

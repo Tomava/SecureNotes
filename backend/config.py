@@ -10,6 +10,7 @@ PORT = os.getenv("PORT")
 CREDENTIALS_DB = "credentials.db"
 USERS_TABLE = "users"
 TOKENS_TABLE = "tokens"
+NOTES_TABLE = "notes"
 MAX_PASSWORD_LENGTH = 128
 ACCESS_EXPIRES = timedelta(hours=1)
 POSTGRES_DB = os.getenv("POSTGRES_DB")
