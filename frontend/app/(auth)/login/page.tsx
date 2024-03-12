@@ -4,6 +4,8 @@ import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { CONFIG } from "@/app/config";
 import { decryptString, encryptString, uint8ArrayToHex } from "@/app/helpers";
 import bcrypt from "bcryptjs";
+import Banner from "@/components/banner";
+import { useRouter } from "next/navigation";
 
 type FormData = {
   username: "";
@@ -17,10 +19,23 @@ const Login: React.FC = () => {
   });
 
   const [encryptionKey, setEncryptionKey] = useState("");
+  const [bannerText, setBannerText] = useState("");
+  const router = useRouter();
+
+  const setBanner = (text: string) => {
+    setBannerText(text);
+    setTimeout(() => {
+      setBannerText("");
+    }, 5000);
+  };
 
   useEffect(() => {
-    localStorage.setItem("encryptionKey", encryptionKey);
-  }, [encryptionKey]);
+    if (encryptionKey) {
+      localStorage.setItem("encryptionKey", encryptionKey);
+    } else {
+      router.push(CONFIG.NEXT_PUBLIC_FRONTEND_NOTES);
+    }
+  }, [encryptionKey, router]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -41,6 +56,11 @@ const Login: React.FC = () => {
       }
     );
 
+    if (response.status != 200) {
+      setBanner("Incorrect credentials!");
+      return;
+    }
+
     const hashData = (await response.json()).data;
 
     // Create login hash to use for logging in
@@ -58,6 +78,11 @@ const Login: React.FC = () => {
       }
     );
 
+    if (response2.status != 200) {
+      setBanner("Incorrect credentials!");
+      return;
+    }
+
     const loginData = (await response2.json()).data;
 
     const encryptedEncryptionKey = loginData.encrypted_encryption_key;
@@ -65,6 +90,8 @@ const Login: React.FC = () => {
 
     const encryptionHash = bcrypt.hashSync(password, encryptionSalt);
     setEncryptionKey(decryptString(encryptedEncryptionKey, encryptionHash));
+
+    router.push(CONFIG.NEXT_PUBLIC_FRONTEND_NOTES);
   };
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -78,6 +105,7 @@ const Login: React.FC = () => {
   // TODO: Add CSRF tag
   return (
     <main>
+      {bannerText && <Banner text={bannerText} />}
       <div>
         <form method="post" onSubmit={handleSubmit}>
           <label htmlFor="username">Username:</label>

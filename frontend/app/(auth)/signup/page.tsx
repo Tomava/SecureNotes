@@ -1,9 +1,10 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { CONFIG } from "@/app/config";
 import { encryptString, uint8ArrayToHex } from "@/app/helpers";
 import bcrypt from "bcryptjs";
+import { useRouter } from "next/navigation";
 
 type FormData = {
   username: "";
@@ -15,6 +16,13 @@ const Signup: React.FC = () => {
     username: "",
     password: "",
   });
+  const router = useRouter();
+
+  useEffect(() => {
+    if (localStorage.getItem("encryptionKey")) {
+      router.push(CONFIG.NEXT_PUBLIC_FRONTEND_NOTES);
+    }
+  }, [router]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
