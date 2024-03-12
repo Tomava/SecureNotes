@@ -1,0 +1,13 @@
+.navigation {
+    display: flex;
+    flex-direction: row;
+    gap: 1em;
+    padding: 1em 0.2em;
+    width: fit-content;
+    border-radius: 0.5em;
+
+    .button {
+        height: 5em;
+        width: 5em;
+    }
+}

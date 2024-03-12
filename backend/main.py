@@ -254,7 +254,10 @@ def logout():
     except psycopg2.Error as e:
         dev_log(e)
         return jsonify(messages.SERVER_ERROR), 500
-    return jsonify(messages.LOGGED_OUT), 200
+    message = messages.LOGGED_OUT
+    response = jsonify(message)
+    response.set_cookie("session", "", expires=0, httponly=True)
+    return response, 200
 
 
 @app.route("/notes", methods=["GET", "POST", "PUT"])

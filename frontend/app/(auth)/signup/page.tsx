@@ -19,7 +19,7 @@ const Signup: React.FC = () => {
   const router = useRouter();
 
   useEffect(() => {
-    if (localStorage.getItem("encryptionKey")) {
+    if (localStorage.getItem(CONFIG.NEXT_PUBLIC_ENCRYPTION_KEY)) {
       router.push(CONFIG.NEXT_PUBLIC_FRONTEND_NOTES);
     }
   }, [router]);

@@ -2,7 +2,7 @@
 
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { CONFIG } from "@/app/config";
-import { decryptString, encryptString, uint8ArrayToHex } from "@/app/helpers";
+import { decryptString } from "@/app/helpers";
 import bcrypt from "bcryptjs";
 import Banner from "@/components/banner";
 import { useRouter } from "next/navigation";
@@ -31,11 +31,15 @@ const Login: React.FC = () => {
 
   useEffect(() => {
     if (encryptionKey) {
-      localStorage.setItem("encryptionKey", encryptionKey);
-    } else {
+      localStorage.setItem(CONFIG.NEXT_PUBLIC_ENCRYPTION_KEY, encryptionKey);
+    }
+  }, [encryptionKey]);
+
+  useEffect(() => {
+    if (localStorage.getItem(CONFIG.NEXT_PUBLIC_ENCRYPTION_KEY)) {
       router.push(CONFIG.NEXT_PUBLIC_FRONTEND_NOTES);
     }
-  }, [encryptionKey, router]);
+  }, [router]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();

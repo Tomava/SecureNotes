@@ -3,14 +3,14 @@
 import {
   ChangeEvent,
   FormEvent,
-  useCallback,
   useEffect,
   useState,
 } from "react";
 import { CONFIG } from "@/app/config";
-import { decryptString, encryptString, uint8ArrayToHex } from "@/app/helpers";
+import { decryptString, encryptString } from "@/app/helpers";
 import Note from "@/components/note";
-import styles from './page.module.css'
+import styles from "./page.module.css";
+import { useRouter } from "next/navigation";
 
 export type NoteData = {
   title: string;
@@ -31,13 +31,20 @@ const Notes: React.FC = () => {
     title: "",
     body: "",
   });
+  const router = useRouter();
 
   useEffect(() => {
-    const encKey = localStorage.getItem("encryptionKey");
+    const encKey = localStorage.getItem(CONFIG.NEXT_PUBLIC_ENCRYPTION_KEY);
     if (encKey) {
       setEncryptionKey(encKey);
     }
   }, []);
+
+  useEffect(() => {
+    if (!localStorage.getItem(CONFIG.NEXT_PUBLIC_ENCRYPTION_KEY)) {
+      router.push(CONFIG.NEXT_PUBLIC_FRONTEND_LOGIN);
+    }
+  }, [router]);
 
   useEffect(() => {
     const fetchData = async () => {
