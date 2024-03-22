@@ -18,3 +18,4 @@ POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
 POSTGRES_USER = os.getenv("POSTGRES_USER")
 DB_PORT = os.getenv("DB_PORT")
 DB_HOST = os.getenv("DB_HOST")
+SESSION_TOKEN = "session_token"

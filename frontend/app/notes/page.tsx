@@ -1,13 +1,8 @@
 "use client";
 
-import {
-  ChangeEvent,
-  FormEvent,
-  useEffect,
-  useState,
-} from "react";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { CONFIG } from "@/app/config";
-import { decryptString, encryptString } from "@/app/helpers";
+import { decryptString, encryptString, fetchCsrf } from "@/app/helpers";
 import Note from "@/components/note";
 import styles from "./page.module.css";
 import { useRouter } from "next/navigation";
@@ -31,6 +26,7 @@ const Notes: React.FC = () => {
     title: "",
     body: "",
   });
+  const [csrfToken, setCsrfToken] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -85,6 +81,12 @@ const Notes: React.FC = () => {
     fetchData().catch(console.error);
   }, [encryptionKey]);
 
+  useEffect(() => {
+    if (!csrfToken) {
+      fetchCsrf().then((csrfTokenResponse) => setCsrfToken(csrfTokenResponse)).catch(console.error);
+    }
+  }, [csrfToken]);
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     await createNote();
@@ -115,6 +117,7 @@ const Notes: React.FC = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken,
         },
         body: JSON.stringify(sendingData),
         credentials: "include",

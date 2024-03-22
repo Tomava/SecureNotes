@@ -4,10 +4,12 @@ import { MouseEvent, useEffect, useState } from "react";
 import { CONFIG } from "@/app/config";
 import { useRouter } from "next/navigation";
 import Banner from "@/components/banner";
+import { fetchCsrf } from "@/app/helpers";
 
 const Logout: React.FC = () => {
   const [bannerText, setBannerText] = useState("");
   const [isLoggedOut, setIsLoggedOut] = useState(false);
+  const [csrfToken, setCsrfToken] = useState("");
   const router = useRouter();
 
   const setBanner = (text: string) => {
@@ -35,13 +37,20 @@ const Logout: React.FC = () => {
     }
   }, [isLoggedOut, router]);
 
+  useEffect(() => {
+    if (!csrfToken) {
+      fetchCsrf().then((csrfTokenResponse) => setCsrfToken(csrfTokenResponse)).catch(console.error);
+    }
+  }, [csrfToken]);
+
   const logout = async () => {
     const response = await fetch(
       `${CONFIG.NEXT_PUBLIC_BACKEND_ROOT}${CONFIG.NEXT_PUBLIC_BACKEND_LOGOUT}`,
       {
-        method: "GET",
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken,
         },
         credentials: "include",
       }
@@ -55,7 +64,6 @@ const Logout: React.FC = () => {
     setIsLoggedOut(true);
   };
 
-  // TODO: Add CSRF tag
   return (
     <main>
       {bannerText && <Banner text={bannerText} />}

@@ -23,6 +23,11 @@ UNAUTHORIZED_ERROR = {
     "message": "Unauthorized"
 }
 
+FORBIDDEN_ERROR = {
+    "error": "Forbidden",
+    "message": "Forbidden"
+}
+
 SERVER_ERROR = {
     "error": "ServerError",
     "message": "Error handling the request"
@@ -50,4 +55,8 @@ LOGGED_OUT = {
 
 DATA_FETCHED = {
     "message": "Data fetched"
+}
+
+CSRF_TOKEN_CREATED = {
+    "message": "CSRF cookie set"
 }

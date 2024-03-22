@@ -72,13 +72,17 @@ const Login: React.FC = () => {
     const loginHash = bcrypt.hashSync(password, loginSalt);
 
     const response2 = await fetch(
-      `${CONFIG.NEXT_PUBLIC_BACKEND_ROOT}${CONFIG.NEXT_PUBLIC_BACKEND_LOGIN}?username=${username}&front_login_hash=${loginHash}`,
+      `${CONFIG.NEXT_PUBLIC_BACKEND_ROOT}${CONFIG.NEXT_PUBLIC_BACKEND_LOGIN}`,
       {
-        method: "GET",
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         credentials: "include",
+        body: JSON.stringify({
+          username: username,
+          front_login_hash: loginHash
+        })
       }
     );
 
@@ -106,7 +110,6 @@ const Login: React.FC = () => {
     }));
   };
 
-  // TODO: Add CSRF tag
   return (
     <main>
       {bannerText && <Banner text={bannerText} />}

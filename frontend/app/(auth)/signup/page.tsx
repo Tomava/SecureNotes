@@ -76,7 +76,6 @@ const Signup: React.FC = () => {
     }));
   };
 
-  // TODO: Add CSRF tag
   return (
     <main>
       <div>

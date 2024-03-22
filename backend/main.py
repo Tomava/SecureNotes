@@ -7,6 +7,7 @@ import psycopg2
 from functools import wraps
 from flask import Flask, request, jsonify
 from flask_cors import CORS, cross_origin
+from flask_wtf.csrf import CSRFProtect, generate_csrf
 import waitress
 from config import *
 import messages as messages
@@ -14,20 +15,21 @@ import argon2
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = SECRET_KEY
+csrf = CSRFProtect(app)
 
 
 def login_required(f):
     @wraps(f)
     def check_user_login(*args, **kwargs):
-        session = request.cookies.get("session")
-        if session is None:
+        session_token = request.cookies.get(SESSION_TOKEN)
+        if session_token is None:
             return jsonify(messages.UNAUTHORIZED_ERROR), 401
 
         try:
             res = get_database_result(
                 CREDENTIALS_DB,
                 f"SELECT user_id FROM {TOKENS_TABLE} WHERE token =(%s)",
-                (session,),
+                (session_token,),
                 fetch=True,
             )
         except psycopg2.Error as e:
@@ -94,6 +96,7 @@ def verify_password(saved_hash, password):
 
 @app.post("/signup")
 @cross_origin()
+@csrf.exempt
 def sign_up():
     request_data = request.get_json()
     username = request_data.get("username")
@@ -102,7 +105,6 @@ def sign_up():
     encryption_salt = request_data.get("encryption_salt")
     encrypted_encryption_key = request_data.get("encrypted_encryption_key")
     # password = request_data.get("password")
-    # VULNERABILITY_FIX: Avoid SQL injection in 'username' with parameterized query
     try:
         res = get_database_result(
             CREDENTIALS_DB,
@@ -121,7 +123,7 @@ def sign_up():
     password_hash = hash_password(front_login_hash)
     uuid_value = str(uuid.uuid4())
     now = datetime.datetime.now().replace(microsecond=0)
-    # VULNERABILITY_FIX: Avoid SQL injection in 'username' with parameterized query
+
     try:
         get_database_result(
             CREDENTIALS_DB,
@@ -154,11 +156,11 @@ def sign_up():
 
 @app.get("/hash")
 @cross_origin()
+@csrf.exempt
 def hash():
     username = request.args.get("username")
     dev_log(username)
 
-    # VULNERABILITY_FIX: Avoid SQL injection in 'username' with parameterized query
     try:
         res = get_database_result(
             CREDENTIALS_DB,
@@ -180,13 +182,25 @@ def hash():
     return jsonify(message), 200
 
 
-@app.get("/login")
+@app.get("/csrf")
 @cross_origin()
-def login():
-    username = request.args.get("username")
-    front_login_hash = request.args.get("front_login_hash")
+@login_required
+@csrf.exempt
+def get_csrf():
+    message = messages.CSRF_TOKEN_CREATED
+    message["data"] = {"csrf_token": generate_csrf()}
+    return jsonify(message), 200
 
-    # VULNERABILITY_FIX: Avoid SQL injection in 'username' with parameterized query
+
+@app.post("/login")
+@cross_origin()
+@csrf.exempt
+def login():
+    request_data = request.get_json()
+
+    username = request_data.get("username")
+    front_login_hash = request_data.get("front_login_hash")
+
     try:
         result = get_database_result(
             CREDENTIALS_DB,
@@ -208,7 +222,7 @@ def login():
     if not verify_password(login_hash, front_login_hash):
         return jsonify(messages.INVALID_CREDENTIALS_ERROR), 401
 
-    session_token = secrets.token_hex(32)
+    session_token = secrets.token_hex(64)
 
     message = messages.LOGGED_IN
     message["data"] = {
@@ -238,15 +252,15 @@ def login():
         return jsonify(messages.SERVER_ERROR), 500
 
     response = jsonify(message)
-    response.set_cookie("session", session_token, httponly=True)
+    response.set_cookie(SESSION_TOKEN, session_token, httponly=True)
     return response, 200
 
 
-@app.get("/logout")
+@app.post("/logout")
 @cross_origin()
 @login_required
 def logout():
-    session = request.cookies.get("session")
+    session = request.cookies.get(SESSION_TOKEN)
     try:
         get_database_result(
             CREDENTIALS_DB, f"DELETE FROM {TOKENS_TABLE} WHERE token = (%s)", (session,)
@@ -256,6 +270,7 @@ def logout():
         return jsonify(messages.SERVER_ERROR), 500
     message = messages.LOGGED_OUT
     response = jsonify(message)
+    response.set_cookie(SESSION_TOKEN, "", expires=0, httponly=True)
     response.set_cookie("session", "", expires=0, httponly=True)
     return response, 200
 
@@ -265,7 +280,7 @@ def logout():
 @login_required
 def notes():
     method = request.method
-    session = request.cookies.get("session")
+    session = request.cookies.get(SESSION_TOKEN)
     res = get_database_result(
         CREDENTIALS_DB,
         f"SELECT user_id FROM {TOKENS_TABLE} WHERE token =(%s)",
@@ -333,7 +348,7 @@ def notes():
                 "note_id": note_id,
                 "created_at": int(now.timestamp()),
                 "modified_at": int(now.timestamp()),
-                "note_data": original_note_data
+                "note_data": original_note_data,
             }
             message = messages.NOTE_CREATED
             message["data"] = inserted_data
