@@ -325,6 +325,15 @@ def notes():
         message["data"] = {"notes": notes_list}
         return jsonify(message), 200
     if method == "POST":
+        res = get_database_result(
+        CREDENTIALS_DB,
+        f"SELECT COUNT(*) FROM {NOTES_TABLE} WHERE owner_id =(%s)",
+        (current_user,),
+        fetch=True,
+        )
+        notes_amount = res[0]
+        if notes_amount >= MAX_NOTES:
+            return jsonify(messages.TOO_MANY_ERROR), 413
         request_data = request.get_json()
         try:
             original_note_title = request_data.get("note_title")
@@ -335,6 +344,10 @@ def notes():
         except ValueError:
             return jsonify(messages.INVALID_PARAMETERS_ERROR), 400
         now = datetime.datetime.now().replace(microsecond=0)
+        title_size = len(note_title)
+        body_size = len(note_body)
+        if title_size + body_size > MAX_SIZE:
+            return jsonify(messages.TOO_LARGE_ERROR), 413
         try:
             res = get_database_result(
                 CREDENTIALS_DB,

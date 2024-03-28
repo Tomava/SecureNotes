@@ -3,6 +3,7 @@
     padding: 1em 0.2em;
     width: fit-content;
     border-radius: 0.5em;
+    white-space: pre-line;
 }
 
 .errorBanner {
@@ -10,4 +11,5 @@
     padding: 1em 0.2em;
     width: fit-content;
     border-radius: 0.5em;
+    white-space: pre-line;
 }

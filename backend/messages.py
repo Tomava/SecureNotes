@@ -18,6 +18,16 @@ INVALID_PARAMETERS_ERROR = {
     "message": "Parameters were invalid"
 }
 
+TOO_LARGE_ERROR = {
+    "error": "TooLarge",
+    "message": "Content was too large"
+}
+
+TOO_MANY_ERROR = {
+    "error": "TooMany",
+    "message": "Too many notes already"
+}
+
 UNAUTHORIZED_ERROR = {
     "error": "Unauthorized",
     "message": "Unauthorized"

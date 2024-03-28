@@ -2,11 +2,17 @@
 
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { CONFIG } from "@/app/config";
-import { decryptString, encryptString, fetchCsrf } from "@/app/helpers";
+import {
+  decryptString,
+  encryptString,
+  fetchCsrf,
+  setBanner,
+} from "@/app/helpers";
 import Note from "@/components/note";
 import styles from "./page.module.css";
 import { useRouter } from "next/navigation";
 import Navigation from "@/components/navigation";
+import { ErrorBanner } from "@/components/banner";
 
 export type NoteData = {
   title: string;
@@ -27,6 +33,7 @@ const Notes: React.FC = () => {
     title: "",
     body: "",
   });
+  const [errorBannerText, setErrorBannerText] = useState("");
   const [csrfToken, setCsrfToken] = useState("");
   const router = useRouter();
 
@@ -128,12 +135,25 @@ const Notes: React.FC = () => {
       }
     );
 
-    const responseData = (await response.json()).data;
+    const responseJson = await response.json();
 
+    if (response.status != 201) {
+      let message = "Not saved:\n";
+      if (responseJson.error == "TooLarge") {
+        message += "Note was too large";
+      } else if (responseJson.error == "TooMany") {
+        message += "Too many notes already";
+      } else {
+        message += "Error when saving";
+      }
+      setBanner(message, setErrorBannerText, 5000);
+    }
+
+    const responseData = responseJson.data;
     const addedNote = {
       createdAt: responseData.created_at,
       modifiedAt: responseData.modified_at,
-      noteData: {title: title, body: body},
+      noteData: { title: title, body: body },
       noteId: responseData.note_id,
     };
     setNotes([...notes, addedNote]);
@@ -152,39 +172,42 @@ const Notes: React.FC = () => {
   return (
     <>
       <Navigation loggedIn={true} />
-      <main className={styles.main}>
-        <div id="new-note">
-          <h2>Create new</h2>
-          <form method="post" onSubmit={handleSubmit}>
-            <label htmlFor="title">Title:</label>
-            <br />
-            <input
-              type="text"
-              id="title"
-              name="title"
-              value={formData.title}
-              onChange={handleChange}
-            />
-            <br />
-            <label htmlFor="body">Body:</label>
-            <br />
-            <textarea
-              id="body"
-              name="body"
-              value={formData.body}
-              onChange={handleChange}
-            />
-            <br />
-            <input type="submit" value="Create" />
-          </form>
-        </div>
-        <div id="notes">
-          <h2>Notes</h2>
-          <ul id="notesList" className={styles.notesList}>
-            {notes.map((note) => (
-              <Note key={note.noteId} noteData={note} />
-            ))}
-          </ul>
+      <main>
+        {errorBannerText && <ErrorBanner text={errorBannerText} />}
+        <div className={styles.main}>
+          <div id="new-note">
+            <h2>Create new</h2>
+            <form method="post" onSubmit={handleSubmit}>
+              <label htmlFor="title">Title:</label>
+              <br />
+              <input
+                type="text"
+                id="title"
+                name="title"
+                value={formData.title}
+                onChange={handleChange}
+              />
+              <br />
+              <label htmlFor="body">Body:</label>
+              <br />
+              <textarea
+                id="body"
+                name="body"
+                value={formData.body}
+                onChange={handleChange}
+              />
+              <br />
+              <input type="submit" value="Create" />
+            </form>
+          </div>
+          <div id="notes">
+            <h2>Notes</h2>
+            <ul id="notesList" className={styles.notesList}>
+              {notes.map((note) => (
+                <Note key={note.noteId} noteData={note} />
+              ))}
+            </ul>
+          </div>
         </div>
       </main>
     </>
