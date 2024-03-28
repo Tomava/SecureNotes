@@ -106,6 +106,7 @@ const Signup: React.FC = () => {
               name="username"
               value={formData.username}
               onChange={handleChange}
+              maxLength={CONFIG.NEXT_PUBLIC_USERNAME_LENGTH}
             />
             <br />
             <label htmlFor="password">Password:</label>

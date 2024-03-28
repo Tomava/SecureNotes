@@ -104,7 +104,12 @@ def sign_up():
     front_login_salt = request_data.get("front_login_salt")
     encryption_salt = request_data.get("encryption_salt")
     encrypted_encryption_key = request_data.get("encrypted_encryption_key")
-    # password = request_data.get("password")
+
+    if len(username) > USERNAME_MAX_LEN or len(front_login_salt) != FRONT_LOGIN_SALT_LEN or len(encryption_salt) != ENCRYPTION_SALT_LEN or len(encrypted_encryption_key) != ENCRYPTED_ENCRYPTION_KEY_LEN:
+        message = messages.INVALID_PARAMETERS_ERROR
+        message["message"] = "Invalid character length of parameters"
+        return jsonify(message), 400
+
     try:
         res = get_database_result(
             CREDENTIALS_DB,
@@ -200,6 +205,11 @@ def login():
 
     username = request_data.get("username")
     front_login_hash = request_data.get("front_login_hash")
+
+    if len(username) > USERNAME_MAX_LEN:
+        message = messages.INVALID_PARAMETERS_ERROR
+        message["message"] = "Invalid character length of parameters"
+        return jsonify(message), 400
 
     try:
         result = get_database_result(

@@ -1,12 +1,12 @@
--- TODO: Credentials to database
 DROP TABLE IF EXISTS users;
+
 CREATE TABLE IF NOT EXISTS users(
     id                          TEXT PRIMARY KEY     NOT NULL,
-    username                    TEXT UNIQUE          NOT NULL,
-    login_hash                  TEXT                 NOT NULL,
-    front_login_salt            TEXT                 NOT NULL,
-    encryption_salt             TEXT                 NOT NULL,
-    encrypted_encryption_key    TEXT                 NOT NULL,
+    username                    VARCHAR(20) UNIQUE   NOT NULL,
+    login_hash                  CHAR(97)             NOT NULL,
+    front_login_salt            CHAR(29)             NOT NULL,
+    encryption_salt             CHAR(29)             NOT NULL,
+    encrypted_encryption_key    CHAR(128)            NOT NULL,
     password_change_time        INTEGER              NOT NULL
 );
 INSERT INTO users(
@@ -18,6 +18,7 @@ INSERT INTO users(
     encrypted_encryption_key,
     password_change_time
 )
+-- TODO: Remove hard coded user
 VALUES (
     '9e5d0a6c-16c8-43bd-861e-91296e94ffa9',
     'test',
@@ -30,9 +31,9 @@ VALUES (
 
 DROP TABLE IF EXISTS tokens;
 CREATE TABLE IF NOT EXISTS tokens(
-    token                   TEXT PRIMARY KEY     NOT NULL,
-    user_id                 TEXT                 NOT NULL,
-    created_at              INTEGER              NOT NULL,
+    token                   CHAR(128) PRIMARY KEY   NOT NULL,
+    user_id                 TEXT                    NOT NULL,
+    created_at              INTEGER                 NOT NULL,
     FOREIGN KEY(user_id)    REFERENCES users(id)
 );
 
