@@ -34,3 +34,10 @@ export const fetchCsrf = async (): Promise<string> => {
   const csrfTokenResponse: string | undefined = responseData.csrf_token;
   return csrfTokenResponse || "";
 };
+
+export const setBanner = (text: string, setBannerText: Dispatch<SetStateAction<string>>, timeout: number) => {
+  setBannerText(text);
+  setTimeout(() => {
+    setBannerText("");
+  }, timeout);
+};

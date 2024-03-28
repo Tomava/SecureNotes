@@ -2,9 +2,11 @@
 
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { CONFIG } from "@/app/config";
-import { encryptString, uint8ArrayToHex } from "@/app/helpers";
+import { encryptString, setBanner, uint8ArrayToHex } from "@/app/helpers";
 import bcrypt from "bcryptjs";
 import { useRouter } from "next/navigation";
+import { Banner, ErrorBanner } from "@/components/banner";
+import Navigation from "@/components/navigation";
 
 type FormData = {
   username: "";
@@ -16,6 +18,8 @@ const Signup: React.FC = () => {
     username: "",
     password: "",
   });
+  const [bannerText, setBannerText] = useState("");
+  const [errorBannerText, setErrorBannerText] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -66,6 +70,16 @@ const Signup: React.FC = () => {
         body: JSON.stringify(sendingData),
       }
     );
+
+    if (response.status != 201) {
+      setBanner("Invalid credentials!", setErrorBannerText, 5000);
+      return;
+    }
+
+    setBanner("User created!\nRedirecting...", setBannerText, 5000);
+    setTimeout(() => {
+      router.push(CONFIG.NEXT_PUBLIC_BACKEND_LOGIN);
+    }, 3000);
   };
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -77,33 +91,38 @@ const Signup: React.FC = () => {
   };
 
   return (
-    <main>
-      <div>
-        <form method="post" onSubmit={handleSubmit}>
-          <label htmlFor="username">Username:</label>
-          <br />
-          <input
-            type="text"
-            id="username"
-            name="username"
-            value={formData.username}
-            onChange={handleChange}
-          />
-          <br />
-          <label htmlFor="password">Password:</label>
-          <br />
-          <input
-            type="password"
-            id="password"
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-          />
-          <br />
-          <input type="submit" value="Sign up" />
-        </form>
-      </div>
-    </main>
+    <>
+      <Navigation loggedIn={false} />
+      <main>
+        {errorBannerText && <ErrorBanner text={errorBannerText} />}
+        {bannerText && <Banner text={bannerText} />}
+        <div>
+          <form method="post" onSubmit={handleSubmit}>
+            <label htmlFor="username">Username:</label>
+            <br />
+            <input
+              type="text"
+              id="username"
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
+            />
+            <br />
+            <label htmlFor="password">Password:</label>
+            <br />
+            <input
+              type="password"
+              id="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+            />
+            <br />
+            <input type="submit" value="Sign up" />
+          </form>
+        </div>
+      </main>
+    </>
   );
 };
 

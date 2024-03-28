@@ -3,21 +3,15 @@
 import { MouseEvent, useEffect, useState } from "react";
 import { CONFIG } from "@/app/config";
 import { useRouter } from "next/navigation";
-import Banner from "@/components/banner";
-import { fetchCsrf } from "@/app/helpers";
+import { ErrorBanner } from "@/components/banner";
+import { fetchCsrf, setBanner } from "@/app/helpers";
+import Navigation from "@/components/navigation";
 
 const Logout: React.FC = () => {
-  const [bannerText, setBannerText] = useState("");
+  const [errorBannerText, setErrorBannerText] = useState("");
   const [isLoggedOut, setIsLoggedOut] = useState(false);
   const [csrfToken, setCsrfToken] = useState("");
   const router = useRouter();
-
-  const setBanner = (text: string) => {
-    setBannerText(text);
-    setTimeout(() => {
-      setBannerText("");
-    }, 5000);
-  };
 
   const handleLogout = async (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -39,7 +33,9 @@ const Logout: React.FC = () => {
 
   useEffect(() => {
     if (!csrfToken) {
-      fetchCsrf().then((csrfTokenResponse) => setCsrfToken(csrfTokenResponse)).catch(console.error);
+      fetchCsrf()
+        .then((csrfTokenResponse) => setCsrfToken(csrfTokenResponse))
+        .catch(console.error);
     }
   }, [csrfToken]);
 
@@ -57,7 +53,7 @@ const Logout: React.FC = () => {
     );
 
     if (response.status != 200) {
-      setBanner("Error while logging out!");
+      setBanner("Error while logging out!", setErrorBannerText, 5000);
       return;
     }
 
@@ -65,19 +61,22 @@ const Logout: React.FC = () => {
   };
 
   return (
-    <main>
-      {bannerText && <Banner text={bannerText} />}
-      <div>
+    <>
+      <Navigation loggedIn={true} />
+      <main>
+        {errorBannerText && <ErrorBanner text={errorBannerText} />}
         <div>
-          List of logged in sessions:
-          <ul></ul>
+          <div>
+            List of logged in sessions:
+            <ul></ul>
+          </div>
+          <div>
+            <button onClick={handleLogout}>Logout from this session</button>
+            <button>Logout from everywhere</button>
+          </div>
         </div>
-        <div>
-          <button onClick={handleLogout}>Logout from this session</button>
-          <button>Logout from everywhere</button>
-        </div>
-      </div>
-    </main>
+      </main>
+    </>
   );
 };
 

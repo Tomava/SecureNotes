@@ -2,10 +2,11 @@
 
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { CONFIG } from "@/app/config";
-import { decryptString } from "@/app/helpers";
+import { decryptString, setBanner } from "@/app/helpers";
 import bcrypt from "bcryptjs";
-import Banner from "@/components/banner";
+import { Banner, ErrorBanner } from "@/components/banner";
 import { useRouter } from "next/navigation";
+import Navigation from "@/components/navigation";
 
 type FormData = {
   username: "";
@@ -20,14 +21,8 @@ const Login: React.FC = () => {
 
   const [encryptionKey, setEncryptionKey] = useState("");
   const [bannerText, setBannerText] = useState("");
+  const [errorBannerText, setErrorBannerText] = useState("");
   const router = useRouter();
-
-  const setBanner = (text: string) => {
-    setBannerText(text);
-    setTimeout(() => {
-      setBannerText("");
-    }, 5000);
-  };
 
   useEffect(() => {
     if (encryptionKey) {
@@ -61,7 +56,7 @@ const Login: React.FC = () => {
     );
 
     if (response.status != 200) {
-      setBanner("Incorrect credentials!");
+      setBanner("Incorrect credentials!", setErrorBannerText, 5000);
       return;
     }
 
@@ -81,13 +76,13 @@ const Login: React.FC = () => {
         credentials: "include",
         body: JSON.stringify({
           username: username,
-          front_login_hash: loginHash
-        })
+          front_login_hash: loginHash,
+        }),
       }
     );
 
     if (response2.status != 200) {
-      setBanner("Incorrect credentials!");
+      setBanner("Incorrect credentials!", setErrorBannerText, 5000);
       return;
     }
 
@@ -99,6 +94,7 @@ const Login: React.FC = () => {
     const encryptionHash = bcrypt.hashSync(password, encryptionSalt);
     setEncryptionKey(decryptString(encryptedEncryptionKey, encryptionHash));
 
+    setBanner("Logged in!", setBannerText, 5000);
     router.push(CONFIG.NEXT_PUBLIC_FRONTEND_NOTES);
   };
 
@@ -111,34 +107,38 @@ const Login: React.FC = () => {
   };
 
   return (
-    <main>
-      {bannerText && <Banner text={bannerText} />}
-      <div>
-        <form method="post" onSubmit={handleSubmit}>
-          <label htmlFor="username">Username:</label>
-          <br />
-          <input
-            type="text"
-            id="username"
-            name="username"
-            value={formData.username}
-            onChange={handleChange}
-          />
-          <br />
-          <label htmlFor="password">Password:</label>
-          <br />
-          <input
-            type="password"
-            id="password"
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-          />
-          <br />
-          <input type="submit" value="Login" />
-        </form>
-      </div>
-    </main>
+    <>
+      <Navigation loggedIn={false} />
+      <main>
+        {errorBannerText && <ErrorBanner text={errorBannerText} />}
+        {bannerText && <Banner text={bannerText} />}
+        <div>
+          <form method="post" onSubmit={handleSubmit}>
+            <label htmlFor="username">Username:</label>
+            <br />
+            <input
+              type="text"
+              id="username"
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
+            />
+            <br />
+            <label htmlFor="password">Password:</label>
+            <br />
+            <input
+              type="password"
+              id="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+            />
+            <br />
+            <input type="submit" value="Login" />
+          </form>
+        </div>
+      </main>
+    </>
   );
 };
 

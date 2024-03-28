@@ -12,4 +12,12 @@ const Banner: React.FC<BannerProps> = ({ text }) => {
   );
 };
 
-export default Banner;
+const ErrorBanner: React.FC<BannerProps> = ({ text }) => {
+  return (
+    <div className={styles.errorBanner}>
+      {text}
+    </div>
+  );
+};
+
+export {Banner, ErrorBanner};

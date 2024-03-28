@@ -1,4 +1,11 @@
 .banner {
+    background-color: green;
+    padding: 1em 0.2em;
+    width: fit-content;
+    border-radius: 0.5em;
+}
+
+.errorBanner {
     background-color: red;
     padding: 1em 0.2em;
     width: fit-content;

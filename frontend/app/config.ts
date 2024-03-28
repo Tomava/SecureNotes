@@ -13,5 +13,6 @@ export const CONFIG = {
   NEXT_PUBLIC_FRONTEND_NOTES: "/notes",
   NEXT_PUBLIC_FRONTEND_LOGIN: "/login",
   NEXT_PUBLIC_FRONTEND_LOGOUT: "/logout",
+  NEXT_PUBLIC_FRONTEND_SIGNUP: "/signup",
   NEXT_PUBLIC_ENCRYPTION_KEY: "encryptionKey"
 }

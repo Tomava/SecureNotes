@@ -6,6 +6,7 @@ import { decryptString, encryptString, fetchCsrf } from "@/app/helpers";
 import Note from "@/components/note";
 import styles from "./page.module.css";
 import { useRouter } from "next/navigation";
+import Navigation from "@/components/navigation";
 
 export type NoteData = {
   title: string;
@@ -83,7 +84,9 @@ const Notes: React.FC = () => {
 
   useEffect(() => {
     if (!csrfToken) {
-      fetchCsrf().then((csrfTokenResponse) => setCsrfToken(csrfTokenResponse)).catch(console.error);
+      fetchCsrf()
+        .then((csrfTokenResponse) => setCsrfToken(csrfTokenResponse))
+        .catch(console.error);
     }
   }, [csrfToken]);
 
@@ -146,41 +149,44 @@ const Notes: React.FC = () => {
   };
 
   return (
-    <main className={styles.main}>
-      <div id="new-note">
-        <h2>Create new</h2>
-        <form method="post" onSubmit={handleSubmit}>
-          <label htmlFor="title">Title:</label>
-          <br />
-          <input
-            type="text"
-            id="title"
-            name="title"
-            value={formData.title}
-            onChange={handleChange}
-          />
-          <br />
-          <label htmlFor="body">Body:</label>
-          <br />
-          <textarea
-            id="body"
-            name="body"
-            value={formData.body}
-            onChange={handleChange}
-          />
-          <br />
-          <input type="submit" value="Create" />
-        </form>
-      </div>
-      <div id="notes">
-        <h2>Notes</h2>
-        <ul id="notesList" className={styles.notesList}>
-          {notes.map((note) => (
-            <Note key={note.noteId} noteData={note} />
-          ))}
-        </ul>
-      </div>
-    </main>
+    <>
+      <Navigation loggedIn={true} />
+      <main className={styles.main}>
+        <div id="new-note">
+          <h2>Create new</h2>
+          <form method="post" onSubmit={handleSubmit}>
+            <label htmlFor="title">Title:</label>
+            <br />
+            <input
+              type="text"
+              id="title"
+              name="title"
+              value={formData.title}
+              onChange={handleChange}
+            />
+            <br />
+            <label htmlFor="body">Body:</label>
+            <br />
+            <textarea
+              id="body"
+              name="body"
+              value={formData.body}
+              onChange={handleChange}
+            />
+            <br />
+            <input type="submit" value="Create" />
+          </form>
+        </div>
+        <div id="notes">
+          <h2>Notes</h2>
+          <ul id="notesList" className={styles.notesList}>
+            {notes.map((note) => (
+              <Note key={note.noteId} noteData={note} />
+            ))}
+          </ul>
+        </div>
+      </main>
+    </>
   );
 };
 
