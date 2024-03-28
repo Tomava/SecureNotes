@@ -302,7 +302,7 @@ def notes():
         try:
             res = get_database_result(
                 CREDENTIALS_DB,
-                f"SELECT note_id, created_at, modified_at, note_data FROM {NOTES_TABLE} WHERE owner_id = (%s)",
+                f"SELECT note_id, created_at, modified_at, note_title, note_body FROM {NOTES_TABLE} WHERE owner_id = (%s)",
                 (current_user,),
                 fetch_all=True,
             )
@@ -311,13 +311,14 @@ def notes():
             return jsonify(messages.SERVER_ERROR), 500
         notes_list = []
         for result in res:
-            note_id, created_at, modified_at, note_data = result
+            note_id, created_at, modified_at, note_title, note_body = result
             notes_list.append(
                 {
                     "note_id": note_id,
                     "created_at": created_at,
                     "modified_at": modified_at,
-                    "note_data": base64.b64encode(note_data).decode("utf-8"),
+                    "note_title": base64.b64encode(note_title).decode("utf-8"),
+                    "note_body": base64.b64encode(note_body).decode("utf-8"),
                 }
             )
         message = messages.DATA_FETCHED
@@ -326,8 +327,10 @@ def notes():
     if method == "POST":
         request_data = request.get_json()
         try:
-            original_note_data = request_data.get("note_data")
-            note_data = base64.b64decode(original_note_data)
+            original_note_title = request_data.get("note_title")
+            original_note_body = request_data.get("note_body")
+            note_title = base64.b64decode(original_note_title)
+            note_body = base64.b64decode(original_note_body)
             uuid_value = str(uuid.uuid4())
         except ValueError:
             return jsonify(messages.INVALID_PARAMETERS_ERROR), 400
@@ -340,16 +343,18 @@ def notes():
                     owner_id,
                     created_at,
                     modified_at,
-                    note_data
+                    note_title,
+                    note_body
                 )
-                VALUES (%s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 RETURNING note_id;""",
                 (
                     uuid_value,
                     current_user,
                     int(now.timestamp()),
                     int(now.timestamp()),
-                    note_data,
+                    note_title,
+                    note_body,
                 ),
                 fetch=True,
             )
@@ -358,7 +363,8 @@ def notes():
                 "note_id": note_id,
                 "created_at": int(now.timestamp()),
                 "modified_at": int(now.timestamp()),
-                "note_data": original_note_data,
+                "note_title": original_note_title,
+                "note_body": original_note_body,
             }
             message = messages.NOTE_CREATED
             message["data"] = inserted_data

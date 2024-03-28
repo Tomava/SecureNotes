@@ -52,11 +52,6 @@ const Logout: React.FC = () => {
       }
     );
 
-    if (response.status != 200) {
-      setBanner("Error while logging out!", setErrorBannerText, 5000);
-      return;
-    }
-
     setIsLoggedOut(true);
   };
 

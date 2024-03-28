@@ -48,11 +48,15 @@ const Notes: React.FC = () => {
       if (!encryptionKey) {
         return;
       }
-      const formatNoteData = (encryptedData: string) => {
+      const formatNoteData = (
+        encryptedTitle: string,
+        encryptedBody: string
+      ): NoteData => {
         if (encryptionKey) {
-          const decryptedData: NoteData = JSON.parse(
-            decryptString(encryptedData, encryptionKey)
-          );
+          const decryptedData: NoteData = {
+            title: decryptString(encryptedTitle, encryptionKey),
+            body: decryptString(encryptedBody, encryptionKey),
+          };
           return decryptedData;
         }
         return { title: "", body: "" };
@@ -73,7 +77,7 @@ const Notes: React.FC = () => {
           responseData.notes.map((note: any) => ({
             createdAt: note.created_at,
             modifiedAt: note.modified_at,
-            noteData: formatNoteData(note.note_data),
+            noteData: formatNoteData(note.note_title, note.note_body),
             noteId: note.note_id,
           }))
         );
@@ -99,19 +103,16 @@ const Notes: React.FC = () => {
     const title = formData.title;
     const body = formData.body;
 
-    const data = {
-      title: title,
-      body: body,
-    };
-
     if (!encryptionKey) {
       console.error("Can't encrypt without encryption key!");
       return;
     }
-    const encryptedNote = encryptString(JSON.stringify(data), encryptionKey);
+    const encryptedTitle = encryptString(title, encryptionKey);
+    const encryptedBody = encryptString(body, encryptionKey);
 
     const sendingData = {
-      note_data: encryptedNote,
+      note_title: encryptedTitle,
+      note_body: encryptedBody,
     };
 
     const response = await fetch(
@@ -132,7 +133,7 @@ const Notes: React.FC = () => {
     const addedNote = {
       createdAt: responseData.created_at,
       modifiedAt: responseData.modified_at,
-      noteData: data,
+      noteData: {title: title, body: body},
       noteId: responseData.note_id,
     };
     setNotes([...notes, addedNote]);

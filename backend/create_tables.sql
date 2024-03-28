@@ -43,7 +43,8 @@ CREATE TABLE IF NOT EXISTS notes(
     owner_id                TEXT                 NOT NULL,
     created_at              INTEGER              NOT NULL,
     modified_at             INTEGER              NOT NULL,
-    note_data               BYTEA,
+    note_title              BYTEA,
+    note_body               BYTEA,
     FOREIGN KEY(owner_id)   REFERENCES users(id)
 );
 
