@@ -73,6 +73,22 @@ def get_database_result(database_name, statement, args, fetch=False, fetch_all=F
     return res
 
 
+def get_current_user(request):
+    session_token = request.cookies.get(SESSION_TOKEN)
+    try:
+        res = get_database_result(
+            CREDENTIALS_DB,
+            f"SELECT user_id FROM {TOKENS_TABLE} WHERE token =(%s)",
+            (session_token,),
+            fetch=True,
+        )
+    except psycopg2.Error as e:
+        dev_log(e)
+        return None
+    current_user = res[0]
+    return current_user
+
+
 def hash_password(password):
     # VULNERABILITY_FIX: Avoid any too long password
     if len(password) > MAX_PASSWORD_LENGTH:
@@ -105,7 +121,12 @@ def sign_up():
     encryption_salt = request_data.get("encryption_salt")
     encrypted_encryption_key = request_data.get("encrypted_encryption_key")
 
-    if len(username) > USERNAME_MAX_LEN or len(front_login_salt) != FRONT_LOGIN_SALT_LEN or len(encryption_salt) != ENCRYPTION_SALT_LEN or len(encrypted_encryption_key) != ENCRYPTED_ENCRYPTION_KEY_LEN:
+    if (
+        len(username) > USERNAME_MAX_LEN
+        or len(front_login_salt) != FRONT_LOGIN_SALT_LEN
+        or len(encryption_salt) != ENCRYPTION_SALT_LEN
+        or len(encrypted_encryption_key) != ENCRYPTED_ENCRYPTION_KEY_LEN
+    ):
         message = messages.INVALID_PARAMETERS_ERROR
         message["message"] = "Invalid character length of parameters"
         return jsonify(message), 400
@@ -266,18 +287,50 @@ def login():
     return response, 200
 
 
-@app.post("/logout")
+@app.get("/session")
 @cross_origin()
 @login_required
-def logout():
-    session = request.cookies.get(SESSION_TOKEN)
+def session():
+    current_user = get_current_user(request)
+    if current_user is None:
+        return jsonify(messages.SERVER_ERROR), 500
+
     try:
-        get_database_result(
-            CREDENTIALS_DB, f"DELETE FROM {TOKENS_TABLE} WHERE token = (%s)", (session,)
+        res2 = get_database_result(
+            CREDENTIALS_DB,
+            f"SELECT COUNT(*) FROM {TOKENS_TABLE} WHERE user_id =(%s)",
+            (current_user,),
+            fetch=True,
         )
     except psycopg2.Error as e:
         dev_log(e)
         return jsonify(messages.SERVER_ERROR), 500
+    sessions = res2[0]
+    message = messages.DATA_FETCHED
+    message["data"] = {"sessions": sessions}
+    return jsonify(message), 200
+
+
+@app.post("/logout")
+@cross_origin()
+@login_required
+def logout():
+    session_token = request.cookies.get(SESSION_TOKEN)
+    current_user = get_current_user(request)
+    if current_user is None:
+        return jsonify(messages.SERVER_ERROR), 500
+    query_string = f"DELETE FROM {TOKENS_TABLE} WHERE token = (%s)"
+    query_params = (session_token,)
+    if request.args.get("all"):
+        query_string = f"DELETE FROM {TOKENS_TABLE} WHERE user_id = (%s)"
+        query_params = (current_user,)
+
+    try:
+        get_database_result(CREDENTIALS_DB, query_string, query_params)
+    except psycopg2.Error as e:
+        dev_log(e)
+        return jsonify(messages.SERVER_ERROR), 500
+
     message = messages.LOGGED_OUT
     response = jsonify(message)
     response.set_cookie(SESSION_TOKEN, "", expires=0, httponly=True)
@@ -290,14 +343,10 @@ def logout():
 @login_required
 def notes():
     method = request.method
-    session = request.cookies.get(SESSION_TOKEN)
-    res = get_database_result(
-        CREDENTIALS_DB,
-        f"SELECT user_id FROM {TOKENS_TABLE} WHERE token =(%s)",
-        (session,),
-        fetch=True,
-    )
-    current_user = res[0]
+    current_user = get_current_user(request)
+    if current_user is None:
+        return jsonify(messages.SERVER_ERROR), 500
+
     if method == "GET":
         try:
             res = get_database_result(
@@ -325,12 +374,16 @@ def notes():
         message["data"] = {"notes": notes_list}
         return jsonify(message), 200
     if method == "POST":
-        res = get_database_result(
-        CREDENTIALS_DB,
-        f"SELECT COUNT(*) FROM {NOTES_TABLE} WHERE owner_id =(%s)",
-        (current_user,),
-        fetch=True,
-        )
+        try:
+            res = get_database_result(
+                CREDENTIALS_DB,
+                f"SELECT COUNT(*) FROM {NOTES_TABLE} WHERE owner_id =(%s)",
+                (current_user,),
+                fetch=True,
+            )
+        except psycopg2.Error as e:
+            dev_log(e)
+            return jsonify(messages.SERVER_ERROR), 500
         notes_amount = res[0]
         if notes_amount >= MAX_NOTES:
             return jsonify(messages.TOO_MANY_ERROR), 413

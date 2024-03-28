@@ -10,12 +10,18 @@ import Navigation from "@/components/navigation";
 const Logout: React.FC = () => {
   const [errorBannerText, setErrorBannerText] = useState("");
   const [isLoggedOut, setIsLoggedOut] = useState(false);
+  const [loggedSessionCount, setLoggedSessionCount] = useState(0);
   const [csrfToken, setCsrfToken] = useState("");
   const router = useRouter();
 
   const handleLogout = async (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    await logout();
+    await logout(false);
+  };
+
+  const handleLogoutAll = async (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    await logout(true);
   };
 
   useEffect(() => {
@@ -39,9 +45,31 @@ const Logout: React.FC = () => {
     }
   }, [csrfToken]);
 
-  const logout = async () => {
+  useEffect(() => {
+    async function fetchData() {
+      if (!loggedSessionCount) {
+        const response = await fetch(
+          `${CONFIG.NEXT_PUBLIC_BACKEND_ROOT}${CONFIG.NEXT_PUBLIC_BACKEND_SESSION}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+          }
+        );
+        const responseData = (await response.json()).data;
+        if (responseData && responseData.sessions) {
+          setLoggedSessionCount(responseData.sessions);
+        }
+      }
+    }
+    fetchData().then();
+  }, [loggedSessionCount]);
+
+  const logout = async (all: boolean) => {
     const response = await fetch(
-      `${CONFIG.NEXT_PUBLIC_BACKEND_ROOT}${CONFIG.NEXT_PUBLIC_BACKEND_LOGOUT}`,
+      `${CONFIG.NEXT_PUBLIC_BACKEND_ROOT}${CONFIG.NEXT_PUBLIC_BACKEND_LOGOUT}${all ? "?all=true" : ""}`,
       {
         method: "POST",
         headers: {
@@ -61,14 +89,10 @@ const Logout: React.FC = () => {
       <main>
         {errorBannerText && <ErrorBanner text={errorBannerText} />}
         <div>
-          <div>
-            List of logged in sessions:
-            <ul></ul>
-          </div>
-          <div>
-            <button onClick={handleLogout}>Logout from this session</button>
-            <button>Logout from everywhere</button>
-          </div>
+          <button onClick={handleLogout}>Logout from this session</button>
+          {!!loggedSessionCount && (
+            <button onClick={handleLogoutAll}>Logout from all {loggedSessionCount} sessions</button>
+          )}
         </div>
       </main>
     </>
