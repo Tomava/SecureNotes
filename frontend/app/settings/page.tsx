@@ -13,6 +13,8 @@ const Otp: React.FC = () => {
   const [errorBannerText, setErrorBannerText] = useState("");
   const [otpUri, setOtpUri] = useState("");
   const [otpSecret, setOtpSecret] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [otpExists, setOtpExists] = useState(false);
   const [csrfToken, setCsrfToken] = useState("");
   const router = useRouter();
 
@@ -21,6 +23,14 @@ const Otp: React.FC = () => {
       router.push(CONFIG.NEXT_PUBLIC_FRONTEND_LOGIN);
     }
   }, [router]);
+
+  useEffect(() => {
+    if (localStorage.getItem(CONFIG.NEXT_PUBLIC_OTP_CODE)) {
+      setOtpExists(true);
+    }
+    setLoading(false);
+  }, []);
+
   useEffect(() => {
     if (!csrfToken) {
       fetchCsrf()
@@ -31,7 +41,30 @@ const Otp: React.FC = () => {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    await addOtp();
+    if (otpExists) {
+      await removeOtp();
+    } else {
+      await addOtp();
+    }
+  };
+
+  const removeOtp = async () => {
+    // TODO: Ask for OTP
+
+    await fetch(
+      `${CONFIG.NEXT_PUBLIC_BACKEND_ROOT}${CONFIG.NEXT_PUBLIC_BACKEND_OTP}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken,
+        },
+        credentials: "include",
+      }
+    );
+
+    localStorage.removeItem(CONFIG.NEXT_PUBLIC_OTP_CODE);
+    setOtpExists(false);
   };
 
   const addOtp = async () => {
@@ -58,6 +91,8 @@ const Otp: React.FC = () => {
 
     setOtpSecret(otpData.otp_secret);
     setOtpUri(otpData.otp_uri);
+    localStorage.setItem(CONFIG.NEXT_PUBLIC_OTP_CODE, "true");
+    setOtpExists(true);
   };
 
   return (
@@ -67,10 +102,10 @@ const Otp: React.FC = () => {
         {errorBannerText && <ErrorBanner text={errorBannerText} />}
         {bannerText && <Banner text={bannerText} />}
         <div>
-          <form method="post" onSubmit={handleSubmit}>
-            <input type="submit" value="Add OTP" />
-          </form>
-          {otpUri && (
+          {!loading && <form method="post" onSubmit={handleSubmit}>
+            <input type="submit" value={otpExists ? "Remove OTP" : "Add OTP"} />
+          </form>}
+          {otpUri && otpExists && (
             <div>
               <QRCode value={otpUri} />
               <p>{otpSecret}</p>

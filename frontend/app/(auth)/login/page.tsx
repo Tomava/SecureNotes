@@ -108,6 +108,9 @@ const Login: React.FC = () => {
 
     const encryptionHash = bcrypt.hashSync(password, encryptionSalt);
     setEncryptionKey(decryptString(encryptedEncryptionKey, encryptionHash));
+    if (showOTP) {
+      localStorage.setItem(CONFIG.NEXT_PUBLIC_OTP_CODE, "true");
+    }
 
     setBanner("", setErrorBannerText, 5000);
     setBanner("Logged in!", setBannerText, 5000);
