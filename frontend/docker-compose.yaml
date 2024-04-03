@@ -1,0 +1,17 @@
+version: '3'
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_BACKEND_ROOT=backend:5000
+    networks:
+      - secure_notes_network
+
+networks:
+  secure_notes_network:
+    name: secure_notes_network
