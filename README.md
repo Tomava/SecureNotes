@@ -17,7 +17,7 @@ docker compose up --build
 
 ## Development
 
-This will allow to run frontend and backend without docker:
+This will allow to run frontend and backend in development mode with hot reload:
 
 ### Backend
 ```sh
