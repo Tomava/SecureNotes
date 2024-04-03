@@ -3,9 +3,9 @@ USERNAME_TAKEN_ERROR = {
     "message": "Username is already in use"
 }
 
-USERNAME_NOT_FOUND_ERROR = {
-    "error": "UsernameNotFound",
-    "message": "Username not found"
+NOT_FOUND_ERROR = {
+    "error": "NotFound",
+    "message": "Not found"
 }
 
 INVALID_CREDENTIALS_ERROR = {
@@ -14,7 +14,7 @@ INVALID_CREDENTIALS_ERROR = {
 }
 
 INVALID_OTP_ERROR = {
-    "error": "InvaliOTP",
+    "error": "InvalidOTP",
     "message": "OTP code was invalid"
 }
 
@@ -79,3 +79,8 @@ DATA_FETCHED = {
 CSRF_TOKEN_CREATED = {
     "message": "CSRF cookie set"
 }
+
+OK = {
+    "message": "OK"
+}
+

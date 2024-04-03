@@ -9,19 +9,22 @@ import { useRouter } from "next/navigation";
 import Navigation from "@/components/navigation";
 
 type FormData = {
-  username: "";
-  password: "";
+  username: string;
+  password: string;
+  otpCode: string;
 };
 
 const Login: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({
     username: "",
     password: "",
+    otpCode: "",
   });
 
   const [encryptionKey, setEncryptionKey] = useState("");
   const [bannerText, setBannerText] = useState("");
   const [errorBannerText, setErrorBannerText] = useState("");
+  const [showOTP, setShowOTP] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -44,6 +47,7 @@ const Login: React.FC = () => {
   const login = async () => {
     const username = formData.username;
     const password = formData.password;
+    const otpCode = formData.otpCode;
 
     const response = await fetch(
       `${CONFIG.NEXT_PUBLIC_BACKEND_ROOT}${CONFIG.NEXT_PUBLIC_BACKEND_GET_HASH}?username=${username}`,
@@ -77,16 +81,27 @@ const Login: React.FC = () => {
         body: JSON.stringify({
           username: username,
           front_login_hash: loginHash,
+          otp_code: otpCode,
         }),
       }
     );
 
+    const response2Data = await response2.json();
+
     if (response2.status != 200) {
-      setBanner("Incorrect credentials!", setErrorBannerText, 5000);
+      if (response2Data.error == "InvalidOTP") {
+        if (!showOTP) {
+          setShowOTP(true);
+        } else {
+          setBanner("Incorrect OTP code", setErrorBannerText, 5000);
+        }
+      } else {
+        setBanner("Incorrect credentials!", setErrorBannerText, 5000);
+      }
       return;
     }
 
-    const loginData = (await response2.json()).data;
+    const loginData = response2Data.data;
 
     const encryptedEncryptionKey = loginData.encrypted_encryption_key;
     const encryptionSalt = loginData.encryption_salt;
@@ -94,6 +109,7 @@ const Login: React.FC = () => {
     const encryptionHash = bcrypt.hashSync(password, encryptionSalt);
     setEncryptionKey(decryptString(encryptedEncryptionKey, encryptionHash));
 
+    setBanner("", setErrorBannerText, 5000);
     setBanner("Logged in!", setBannerText, 5000);
     router.push(CONFIG.NEXT_PUBLIC_FRONTEND_NOTES);
   };
@@ -114,27 +130,45 @@ const Login: React.FC = () => {
         {bannerText && <Banner text={bannerText} />}
         <div>
           <form method="post" onSubmit={handleSubmit}>
-            <label htmlFor="username">Username:</label>
-            <br />
-            <input
-              type="text"
-              id="username"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              maxLength={CONFIG.NEXT_PUBLIC_USERNAME_LENGTH}
-            />
-            <br />
-            <label htmlFor="password">Password:</label>
-            <br />
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-            />
-            <br />
+            {showOTP ? (
+              <>
+                <label htmlFor="otpCode">OTP code:</label>
+                <br />
+                <input
+                  type="text"
+                  id="otpCode"
+                  name="otpCode"
+                  value={formData.otpCode}
+                  onChange={handleChange}
+                  maxLength={6}
+                />
+                <br />
+              </>
+            ) : (
+              <>
+                <label htmlFor="username">Username:</label>
+                <br />
+                <input
+                  type="text"
+                  id="username"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  maxLength={CONFIG.NEXT_PUBLIC_USERNAME_LENGTH}
+                />
+                <br />
+                <label htmlFor="password">Password:</label>
+                <br />
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                />
+                <br />
+              </>
+            )}
             <input type="submit" value="Login" />
           </form>
         </div>

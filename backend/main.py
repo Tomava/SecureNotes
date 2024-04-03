@@ -129,35 +129,69 @@ def verify_password(saved_hash, password):
         return False
 
 
-@app.post("/otp")
+@app.route("/otp", methods=["GET", "POST", "DELETE"])
 @cross_origin()
 def otp():
     otp_secret = pyotp.random_base32()
     current_user_id = get_current_user_id(request)
     current_username = get_current_user(current_user_id)
-    try:
-        get_database_result(
-            CREDENTIALS_DB,
-            f"""UPDATE {USERS_TABLE}
-                SET otp_code = %s
-                WHERE id = %s;""",
-            (
-                otp_secret,
-                current_user_id,
-            ),
+
+    if request.method == "GET":
+        try:
+            res = get_database_result(
+                CREDENTIALS_DB,
+                f"""SELECT otp_code
+                    FROM {USERS_TABLE}
+                    WHERE id = %s
+                    AND NOT (otp_code IS NULL OR otp_code = '');""",
+                (current_user_id,),
+                fetch=True,
+            )
+        except psycopg2.Error as e:
+            dev_log(e)
+            return jsonify(messages.SERVER_ERROR), 500
+        if res is None:
+            return jsonify(messages.NOT_FOUND_ERROR), 404
+        return jsonify(messages.OK), 200
+    elif request.method == "DELETE":
+        try:
+            get_database_result(
+                CREDENTIALS_DB,
+                f"""UPDATE {USERS_TABLE}
+                    SET otp_code = NULL
+                    WHERE id = %s;""",
+                (
+                    current_user_id,
+                ),
+            )
+        except psycopg2.Error as e:
+            dev_log(e)
+            return jsonify(messages.SERVER_ERROR), 500
+        return jsonify(messages.OK), 200
+    elif request.method == "POST":
+        try:
+            get_database_result(
+                CREDENTIALS_DB,
+                f"""UPDATE {USERS_TABLE}
+                    SET otp_code = %s
+                    WHERE id = %s;""",
+                (
+                    otp_secret,
+                    current_user_id,
+                ),
+            )
+        except psycopg2.Error as e:
+            dev_log(e)
+            return jsonify(messages.SERVER_ERROR), 500
+
+        otp_uri = pyotp.totp.TOTP(otp_secret).provisioning_uri(
+            name=current_username, issuer_name="SecureNotes"
         )
-    except psycopg2.Error as e:
-        dev_log(e)
-        return jsonify(messages.SERVER_ERROR), 500
 
-    otp_uri = pyotp.totp.TOTP(otp_secret).provisioning_uri(
-        name=current_username, issuer_name="SecureNotes"
-    )
+        message = messages.OTP_ADDED
+        message["data"] = {"otp_secret": otp_secret, "otp_uri": otp_uri}
 
-    message = messages.OTP_ADDED
-    message["data"] = {"otp_secret": otp_secret, "otp_uri": otp_uri}
-
-    return jsonify(message), 201
+        return jsonify(message), 201
 
 
 @app.post("/signup")
@@ -252,7 +286,7 @@ def hash():
 
     # Username not found
     if res is None:
-        return jsonify(messages.USERNAME_NOT_FOUND_ERROR), 404
+        return jsonify(messages.NOT_FOUND_ERROR), 404
 
     front_login_salt = res[0]
     message = messages.LOGIN_HASH
@@ -313,7 +347,11 @@ def login():
 
     if otp_code is not None:
         totp = pyotp.TOTP(otp_code)
-        if not totp.verify(request_otp_code, valid_window=2):
+        if (
+            not request_otp_code
+            or len(request_otp_code) != 6
+            or not totp.verify(request_otp_code, valid_window=2)
+        ):
             return jsonify(messages.INVALID_OTP_ERROR), 401
 
     session_token = secrets.token_hex(64)
