@@ -2,7 +2,7 @@ version: '3'
 services:
   db:
     build:
-      context: .
+      context: ./backend
       dockerfile: DockerfileDB
     ports:
       - "5431:5432"
@@ -17,7 +17,7 @@ services:
 
   backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
     volumes:
       - /etc/localtime:/etc/localtime
@@ -35,7 +35,20 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - DB_PORT=5432
       - DB_HOST=db
+      - ENVIRONMENT=prod
       - PORT=5000
+    networks:
+      - secure_notes_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_BACKEND_ROOT=backend:5000
     networks:
       - secure_notes_network
 
