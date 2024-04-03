@@ -7,17 +7,18 @@ CREATE TABLE IF NOT EXISTS users(
     front_login_salt            CHAR(29)             NOT NULL,
     encryption_salt             CHAR(29)             NOT NULL,
     encrypted_encryption_key    CHAR(128)            NOT NULL,
-    password_change_time        INTEGER              NOT NULL
+    password_change_time        INTEGER              NOT NULL,
+    otp_code                    CHAR(32)
 );
-INSERT INTO users(
-    id,
-    username,
-    login_hash,
-    front_login_salt,
-    encryption_salt,
-    encrypted_encryption_key,
-    password_change_time
-)
+-- INSERT INTO users(
+--     id,
+--     username,
+--     login_hash,
+--     front_login_salt,
+--     encryption_salt,
+--     encrypted_encryption_key,
+--     password_change_time
+-- )
 
 -- VALUES (
 --     '9e5d0a6c-16c8-43bd-861e-91296e94ffa9',

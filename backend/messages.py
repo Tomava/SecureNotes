@@ -13,6 +13,11 @@ INVALID_CREDENTIALS_ERROR = {
     "message": "Credentials were invalid"
 }
 
+INVALID_OTP_ERROR = {
+    "error": "InvaliOTP",
+    "message": "OTP code was invalid"
+}
+
 INVALID_PARAMETERS_ERROR = {
     "error": "InvalidParameters",
     "message": "Parameters were invalid"
@@ -49,6 +54,10 @@ USER_CREATED = {
 
 NOTE_CREATED = {
     "message": "Note created"
+}
+
+OTP_ADDED = {
+    "message": "OTP added"
 }
 
 LOGIN_HASH = {

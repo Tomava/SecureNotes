@@ -7,3 +7,4 @@ flask-jwt-extended==4.6.0
 Flask-Cors==4.0.0
 psycopg2-binary==2.9.9
 Flask-WTF==1.2.1
+pyotp==2.9.0

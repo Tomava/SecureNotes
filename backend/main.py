@@ -12,6 +12,7 @@ import waitress
 from config import *
 import messages as messages
 import argon2
+import pyotp
 
 
 def create_app():
@@ -79,13 +80,28 @@ def get_database_result(database_name, statement, args, fetch=False, fetch_all=F
     return res
 
 
-def get_current_user(request):
-    session_token = request.cookies.get(SESSION_TOKEN)
+def get_current_user_id(given_request):
+    session_token = given_request.cookies.get(SESSION_TOKEN)
     try:
         res = get_database_result(
             CREDENTIALS_DB,
-            f"SELECT user_id FROM {TOKENS_TABLE} WHERE token =(%s)",
+            f"SELECT user_id FROM {TOKENS_TABLE} WHERE token = (%s)",
             (session_token,),
+            fetch=True,
+        )
+    except psycopg2.Error as e:
+        dev_log(e)
+        return None
+    current_user_id = res[0]
+    return current_user_id
+
+
+def get_current_user(user_id):
+    try:
+        res = get_database_result(
+            CREDENTIALS_DB,
+            f"SELECT username FROM {USERS_TABLE} WHERE id = (%s)",
+            (user_id,),
             fetch=True,
         )
     except psycopg2.Error as e:
@@ -111,6 +127,37 @@ def verify_password(saved_hash, password):
         return True
     except argon2.exceptions.VerifyMismatchError:
         return False
+
+
+@app.post("/otp")
+@cross_origin()
+def otp():
+    otp_secret = pyotp.random_base32()
+    current_user_id = get_current_user_id(request)
+    current_username = get_current_user(current_user_id)
+    try:
+        get_database_result(
+            CREDENTIALS_DB,
+            f"""UPDATE {USERS_TABLE}
+                SET otp_code = %s
+                WHERE id = %s;""",
+            (
+                otp_secret,
+                current_user_id,
+            ),
+        )
+    except psycopg2.Error as e:
+        dev_log(e)
+        return jsonify(messages.SERVER_ERROR), 500
+
+    otp_uri = pyotp.totp.TOTP(otp_secret).provisioning_uri(
+        name=current_username, issuer_name="SecureNotes"
+    )
+
+    message = messages.OTP_ADDED
+    message["data"] = {"otp_secret": otp_secret, "otp_uri": otp_uri}
+
+    return jsonify(message), 201
 
 
 @app.post("/signup")
@@ -231,6 +278,7 @@ def login():
 
     username = request_data.get("username")
     front_login_hash = request_data.get("front_login_hash")
+    request_otp_code = request_data.get("otp_code")
 
     if (
         len(username) > USERNAME_MAX_LEN
@@ -243,7 +291,7 @@ def login():
     try:
         result = get_database_result(
             CREDENTIALS_DB,
-            f"SELECT id, login_hash, encryption_salt, encrypted_encryption_key FROM {USERS_TABLE} WHERE username = (%s)",
+            f"SELECT id, login_hash, encryption_salt, encrypted_encryption_key, otp_code FROM {USERS_TABLE} WHERE username = (%s)",
             (username,),
             fetch=True,
         )
@@ -257,11 +305,16 @@ def login():
         hash_password(str(uuid.uuid4()))
         return jsonify(messages.INVALID_CREDENTIALS_ERROR), 401
 
-    user_id, login_hash, encryption_salt, encrypted_encryption_key = result
+    user_id, login_hash, encryption_salt, encrypted_encryption_key, otp_code = result
     peppered_front_login_hash = f"{front_login_hash}{DATABASE_PEPPER}"
 
     if not verify_password(login_hash, peppered_front_login_hash):
         return jsonify(messages.INVALID_CREDENTIALS_ERROR), 401
+
+    if otp_code is not None:
+        totp = pyotp.TOTP(otp_code)
+        if not totp.verify(request_otp_code, valid_window=2):
+            return jsonify(messages.INVALID_OTP_ERROR), 401
 
     session_token = secrets.token_hex(64)
 
@@ -301,7 +354,7 @@ def login():
 @cross_origin()
 @login_required
 def session():
-    current_user = get_current_user(request)
+    current_user = get_current_user_id(request)
     if current_user is None:
         return jsonify(messages.SERVER_ERROR), 500
 
@@ -326,7 +379,7 @@ def session():
 @login_required
 def logout():
     session_token = request.cookies.get(SESSION_TOKEN)
-    current_user = get_current_user(request)
+    current_user = get_current_user_id(request)
     if current_user is None:
         return jsonify(messages.SERVER_ERROR), 500
     query_string = f"DELETE FROM {TOKENS_TABLE} WHERE token = (%s)"
@@ -353,7 +406,7 @@ def logout():
 @login_required
 def notes():
     method = request.method
-    current_user = get_current_user(request)
+    current_user = get_current_user_id(request)
     if current_user is None:
         return jsonify(messages.SERVER_ERROR), 500
 
