@@ -123,6 +123,7 @@ def sign_up():
 
     if (
         len(username) > USERNAME_MAX_LEN
+        or len(front_login_hash) != FRONT_LOGIN_HASH_LEN
         or len(front_login_salt) != FRONT_LOGIN_SALT_LEN
         or len(encryption_salt) != ENCRYPTION_SALT_LEN
         or len(encrypted_encryption_key) != ENCRYPTED_ENCRYPTION_KEY_LEN
@@ -141,12 +142,13 @@ def sign_up():
     except psycopg2.Error as e:
         dev_log(e)
         return jsonify(messages.SERVER_ERROR), 500
-
+    
     # Username already taken
     if res is not None:
         return jsonify(messages.USERNAME_TAKEN_ERROR), 409
 
-    password_hash = hash_password(front_login_hash)
+    peppered_front_login_hash = f"{front_login_hash}{DATABASE_PEPPER}"
+    password_hash = hash_password(peppered_front_login_hash)
     uuid_value = str(uuid.uuid4())
     now = datetime.datetime.now().replace(microsecond=0)
 
@@ -227,7 +229,7 @@ def login():
     username = request_data.get("username")
     front_login_hash = request_data.get("front_login_hash")
 
-    if len(username) > USERNAME_MAX_LEN:
+    if len(username) > USERNAME_MAX_LEN or len(front_login_hash) != FRONT_LOGIN_HASH_LEN:
         message = messages.INVALID_PARAMETERS_ERROR
         message["message"] = "Invalid character length of parameters"
         return jsonify(message), 400
@@ -242,6 +244,7 @@ def login():
     except psycopg2.Error as e:
         dev_log(e)
         return jsonify(messages.SERVER_ERROR), 500
+    
 
     # Username not found
     if result is None:
@@ -250,7 +253,9 @@ def login():
         return jsonify(messages.INVALID_CREDENTIALS_ERROR), 401
 
     user_id, login_hash, encryption_salt, encrypted_encryption_key = result
-    if not verify_password(login_hash, front_login_hash):
+    peppered_front_login_hash = f"{front_login_hash}{DATABASE_PEPPER}"
+
+    if not verify_password(login_hash, peppered_front_login_hash):
         return jsonify(messages.INVALID_CREDENTIALS_ERROR), 401
 
     session_token = secrets.token_hex(64)
@@ -439,14 +444,6 @@ def notes():
             dev_log(e)
             return jsonify(messages.SERVER_ERROR), 500
 
-    return jsonify({"message": "success"}), 200
-
-
-# TODO: Remove this, as it's only a test
-@app.route("/protected", methods=["GET"])
-@cross_origin()
-@login_required
-def test_secret():
     return jsonify({"message": "success"}), 200
 
 

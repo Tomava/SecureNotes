@@ -72,7 +72,7 @@ const Signup: React.FC = () => {
     );
 
     if (response.status != 201) {
-      setBanner("Invalid credentials!", setErrorBannerText, 5000);
+      setBanner("Username taken!", setErrorBannerText, 5000);
       return;
     }
 
