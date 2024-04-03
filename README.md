@@ -6,7 +6,7 @@ Requirements:
 
 ## Usage
 
-Rename `.env.template` to `.env` in root dir.
+Copy `.env.template` to `.env` in root dir.
 
 **Default values in .env.template are for demoing only and should be changed if running in production!**
 
