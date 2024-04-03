@@ -13,8 +13,14 @@ from config import *
 import messages as messages
 import argon2
 
-app = Flask(__name__)
-app.config["SECRET_KEY"] = SECRET_KEY
+
+def create_app():
+    flask_app = Flask(__name__)
+    flask_app.config["SECRET_KEY"] = SECRET_KEY
+    return flask_app
+
+
+app = create_app()
 csrf = CSRFProtect(app)
 
 
@@ -90,9 +96,6 @@ def get_current_user(request):
 
 
 def hash_password(password):
-    # VULNERABILITY_FIX: Avoid any too long password
-    if len(password) > MAX_PASSWORD_LENGTH:
-        password = password[:MAX_PASSWORD_LENGTH]
     password_hasher = argon2.PasswordHasher()
     hash_result = password_hasher.hash(password)
     return hash_result
@@ -142,7 +145,7 @@ def sign_up():
     except psycopg2.Error as e:
         dev_log(e)
         return jsonify(messages.SERVER_ERROR), 500
-    
+
     # Username already taken
     if res is not None:
         return jsonify(messages.USERNAME_TAKEN_ERROR), 409
@@ -229,7 +232,10 @@ def login():
     username = request_data.get("username")
     front_login_hash = request_data.get("front_login_hash")
 
-    if len(username) > USERNAME_MAX_LEN or len(front_login_hash) != FRONT_LOGIN_HASH_LEN:
+    if (
+        len(username) > USERNAME_MAX_LEN
+        or len(front_login_hash) != FRONT_LOGIN_HASH_LEN
+    ):
         message = messages.INVALID_PARAMETERS_ERROR
         message["message"] = "Invalid character length of parameters"
         return jsonify(message), 400
@@ -244,7 +250,6 @@ def login():
     except psycopg2.Error as e:
         dev_log(e)
         return jsonify(messages.SERVER_ERROR), 500
-    
 
     # Username not found
     if result is None:
