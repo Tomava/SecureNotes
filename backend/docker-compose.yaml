@@ -35,6 +35,7 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - DB_PORT=5432
       - DB_HOST=db
+      - ENVIRONMENT=prod
       - PORT=5000
     networks:
       - secure_notes_network
