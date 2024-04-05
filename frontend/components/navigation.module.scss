@@ -1,13 +1,18 @@
+@import "../app/globals";
+
 .navigation {
     display: flex;
     flex-direction: row;
     gap: 1em;
     padding: 1em 0.2em;
     width: fit-content;
-    border-radius: 0.5em;
+    align-content: center;
 
     .button {
         height: 5em;
         width: 5em;
+        background-color: $secondary-color;
+        border-radius: $radius;
+        border: 0px;
     }
 }

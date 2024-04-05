@@ -1,0 +1,13 @@
+@import "globals";
+
+.body {
+    background-color: $primary-color;
+    align-self: center;
+
+    .content {
+        //display: flex;
+        //flex-direction: column;
+        //justify-content: center;
+        //align-items: center;
+    }
+}

@@ -1,5 +1,5 @@
 import { ParsedNoteData } from "@/app/notes/page";
-import styles from "./note.module.css";
+import styles from "./note.module.scss";
 
 const Note: React.FC<{ noteData: ParsedNoteData }> = ({ noteData }) => {
   return (

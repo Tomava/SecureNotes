@@ -1,5 +1,5 @@
 import Link from "next/link";
-import styles from "./navigation.module.css";
+import styles from "./navigation.module.scss";
 import { CONFIG } from "@/app/config";
 
 type NavigationProps = {

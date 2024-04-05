@@ -7,6 +7,7 @@ import bcrypt from "bcryptjs";
 import { Banner, ErrorBanner } from "@/components/banner";
 import { useRouter } from "next/navigation";
 import Navigation from "@/components/navigation";
+import styles from "./page.module.scss";
 
 type FormData = {
   username: string;
@@ -128,14 +129,14 @@ const Login: React.FC = () => {
   return (
     <>
       <Navigation loggedIn={false} />
-      <main>
+      <main className={styles.main}>
         {errorBannerText && <ErrorBanner text={errorBannerText} />}
         {bannerText && <Banner text={bannerText} />}
         <div>
           <form method="post" onSubmit={handleSubmit}>
             {showOTP ? (
               <>
-                <label htmlFor="otpCode">OTP code:</label>
+                <label htmlFor="otpCode" className={styles.label}>OTP code:</label>
                 <br />
                 <input
                   type="text"
@@ -149,7 +150,7 @@ const Login: React.FC = () => {
               </>
             ) : (
               <>
-                <label htmlFor="username">Username:</label>
+                <label htmlFor="username" className={styles.label}>Username:</label>
                 <br />
                 <input
                   type="text"
@@ -160,7 +161,7 @@ const Login: React.FC = () => {
                   maxLength={CONFIG.NEXT_PUBLIC_USERNAME_LENGTH}
                 />
                 <br />
-                <label htmlFor="password">Password:</label>
+                <label htmlFor="password" className={styles.label}>Password:</label>
                 <br />
                 <input
                   type="password"

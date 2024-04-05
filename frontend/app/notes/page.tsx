@@ -9,7 +9,7 @@ import {
   setBanner,
 } from "@/app/helpers";
 import Note from "@/components/note";
-import styles from "./page.module.css";
+import styles from "./page.module.scss";
 import { useRouter } from "next/navigation";
 import Navigation from "@/components/navigation";
 import { ErrorBanner } from "@/components/banner";
