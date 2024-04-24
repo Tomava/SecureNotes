@@ -3,7 +3,9 @@ import datetime
 import secrets
 import sqlite3
 import uuid
+import argon2
 import psycopg2
+import pyotp
 from functools import wraps
 from flask import Flask, request, jsonify
 from flask_cors import CORS, cross_origin
@@ -11,18 +13,19 @@ from flask_wtf.csrf import CSRFProtect, generate_csrf
 import waitress
 from config import *
 import messages as messages
-import argon2
-import pyotp
+from blueprint import app_blueprint
 
 
 def create_app():
     flask_app = Flask(__name__)
     flask_app.config["SECRET_KEY"] = SECRET_KEY
-    return flask_app
+    flask_app.register_blueprint(app_blueprint)
+    csrf_temp = CSRFProtect(flask_app)
+    csrf_temp.exempt("backend.main.sign_up")
+    return flask_app, csrf_temp
 
 
-app = create_app()
-csrf = CSRFProtect(app)
+app, csrf = create_app()
 
 
 def login_required(f):
@@ -196,7 +199,6 @@ def otp():
 
 @app.post("/signup")
 @cross_origin()
-@csrf.exempt
 def sign_up():
     request_data = request.get_json()
     username = request_data.get("username")
