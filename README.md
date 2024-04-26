@@ -6,15 +6,39 @@ Requirements:
 
 ### Install
 
-Copy `.env.template` to `.env` in root dir.
+Copy `.env.template` to `.env` in `backend` dir:
+
+```sh
+cp backend/.env.template backend/.env
+```
 
 **Default values in .env.template are for demoing only and should be changed if running in production!**
 
 ## Usage
 
-Run in root dir:
+### Setup
+
+Build backend and frontend with Docker Compose:
+
 ```sh
-docker compose up --build
+cd backend
+docker compose up --build -d
+cd ../frontend
+docker compose up --build -d
+cd ..
+```
+
+Frontend is now accessible in `localhost:3000`.
+
+### Tear down
+
+Stop and remove containers with:
+
+```sh
+cd backend
+docker compose down
+cd ../frontend
+docker compose down
 ```
 
 ## Development

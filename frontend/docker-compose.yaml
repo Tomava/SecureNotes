@@ -8,10 +8,11 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_BACKEND_ROOT=backend:5000
+      - NEXT_PUBLIC_BACKEND_ROOT=http://localhost:5000
     networks:
       - secure_notes_network
 
 networks:
   secure_notes_network:
     name: secure_notes_network
+    external: true
