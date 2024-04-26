@@ -130,7 +130,6 @@ def verify_password(saved_hash, password):
 
 
 @app.route("/otp", methods=["GET", "POST", "DELETE"])
-@cross_origin()
 @login_required
 def otp():
     otp_secret = pyotp.random_base32()
@@ -196,7 +195,6 @@ def otp():
 
 
 @app.post("/signup")
-@cross_origin()
 @csrf.exempt
 def sign_up():
     request_data = request.get_json()
@@ -268,7 +266,6 @@ def sign_up():
 
 
 @app.get("/hash")
-@cross_origin()
 @csrf.exempt
 def hash():
     username = request.args.get("username")
@@ -296,7 +293,6 @@ def hash():
 
 
 @app.get("/csrf")
-@cross_origin()
 @login_required
 @csrf.exempt
 def get_csrf():
@@ -306,7 +302,6 @@ def get_csrf():
 
 
 @app.post("/login")
-@cross_origin()
 @csrf.exempt
 def login():
     request_data = request.get_json()
@@ -390,7 +385,6 @@ def login():
 
 
 @app.get("/session")
-@cross_origin()
 @login_required
 def session():
     current_user = get_current_user_id(request)
@@ -414,7 +408,6 @@ def session():
 
 
 @app.post("/logout")
-@cross_origin()
 @login_required
 def logout():
     session_token = request.cookies.get(SESSION_TOKEN)
@@ -441,7 +434,6 @@ def logout():
 
 
 @app.route("/notes", methods=["GET", "POST", "PUT"])
-@cross_origin()
 @login_required
 def notes():
     method = request.method

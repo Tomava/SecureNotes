@@ -190,10 +190,10 @@ class TestAPI(unittest.TestCase):
     def test_notes_post_with_session_with_csrf(self):
         self.post_test(NOTES_PATH, NOTE_PAYLOAD, 201, True, self.headers)
 
-    # def test_notes_post_too_many(self):
-    #     for _ in range(MAX_NOTES):
-    #         self.post_test(NOTES_PATH, NOTE_PAYLOAD, 201, True, self.headers)
-    #     self.post_test(NOTES_PATH, NOTE_PAYLOAD, 413, True, self.headers)
+    def test_notes_post_too_many(self):
+        for _ in range(MAX_NOTES):
+            self.post_test(NOTES_PATH, NOTE_PAYLOAD, 201, True, self.headers)
+        self.post_test(NOTES_PATH, NOTE_PAYLOAD, 413, True, self.headers)
 
     def test_too_large_note(self):
         payload = NOTE_PAYLOAD.copy()
