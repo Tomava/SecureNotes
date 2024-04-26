@@ -131,6 +131,7 @@ def verify_password(saved_hash, password):
 
 @app.route("/otp", methods=["GET", "POST", "DELETE"])
 @cross_origin()
+@login_required
 def otp():
     otp_secret = pyotp.random_base32()
     current_user_id = get_current_user_id(request)

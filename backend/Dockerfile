@@ -11,6 +11,7 @@ WORKDIR /app
 COPY *.py ./
 COPY .env ./
 COPY requirements.txt ./
+ADD tests ./tests
 
 RUN pip install -r requirements.txt
 
