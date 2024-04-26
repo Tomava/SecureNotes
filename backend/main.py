@@ -6,7 +6,7 @@ import uuid
 import psycopg2
 from functools import wraps
 from flask import Flask, request, jsonify
-from flask_cors import CORS, cross_origin
+from flask_cors import CORS
 from flask_wtf.csrf import CSRFProtect, generate_csrf
 import waitress
 from config import *
@@ -23,6 +23,7 @@ def create_app():
 
 app = create_app()
 csrf = CSRFProtect(app)
+cors = CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}}, supports_credentials=True)
 
 
 def login_required(f):
