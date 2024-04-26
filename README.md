@@ -49,9 +49,7 @@ Tests are run with containers.
 
 ```sh
 cd backend
-docker compose -f docker-compose-tests.yaml up --build -d
-# View results with
-docker logs backend-tester-1 -f
+docker compose -f docker-compose-tests.yaml up --build -d && docker logs backend-tester-1 -f
 # Shut down after running
 docker compose -f docker-compose-tests.yaml down
 ```
