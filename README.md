@@ -4,11 +4,13 @@ Requirements:
 - Docker
 - Docker compose
 
-## Usage
+### Install
 
 Copy `.env.template` to `.env` in root dir.
 
 **Default values in .env.template are for demoing only and should be changed if running in production!**
+
+## Usage
 
 Run in root dir:
 ```sh
@@ -37,4 +39,19 @@ docker exec -it backend-db-1 psql -U secure_notes_user -d secure_notes
 cd frontend
 npm install
 npm run dev
+```
+
+## Testing
+
+Tests are run with containers.
+
+### Backend
+
+```sh
+cd backend
+docker compose -f docker-compose-tests.yaml up --build -d
+# View results with
+docker logs backend-tester-1 -f
+# Shut down after running
+docker compose -f docker-compose-tests.yaml down
 ```

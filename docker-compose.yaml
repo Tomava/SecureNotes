@@ -4,8 +4,6 @@ services:
     build:
       context: ./backend
       dockerfile: DockerfileDB
-    ports:
-      - "5431:5432"
     volumes:
       - ./db-data:/var/lib/postgresql/data
     environment:
@@ -24,8 +22,6 @@ services:
     restart: unless-stopped
     depends_on:
       - db
-    ports:
-      - "5000:5000"
     logging:
       driver: "json-file"
     environment:

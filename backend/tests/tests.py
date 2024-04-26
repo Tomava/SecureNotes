@@ -1,10 +1,11 @@
-import unittest
-import requests
+import time
 import pyotp
+import requests
+import unittest
 from config import *
 import main
 
-BASE_URI = "http://localhost:5000"
+BASE_URI = f"http://{TEST_HOST}:{PORT}"
 HASH_PATH = "/hash"
 SIGNUP_PATH = "/signup"
 LOGIN_PATH = "/login"
@@ -39,6 +40,7 @@ NON_EXISTING_USER_LOGIN_PAYLOAD = {
 NOTE_PAYLOAD = {"note_title": "EjRWeA==", "note_body": "EjRWeA=="}
 REQUEST_TIMEOUT = 10
 
+
 class TestBackend(unittest.TestCase):
     def test_hashing(self):
         hashed_pw = main.hash_password("password")
@@ -52,16 +54,22 @@ class TestBackend(unittest.TestCase):
 
 
 class TestAPI(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        time.sleep(3)
+
     def setUp(self):
-        self.container = PostgresContainer("postgres:16.2")
-        self.container.start()
         self.session = requests.Session()
         requests.post(
-            f"{BASE_URI}/signup", json=EXISTING_USER_SIGNUP_PAYLOAD, timeout=REQUEST_TIMEOUT
+            f"{BASE_URI}/signup",
+            json=EXISTING_USER_SIGNUP_PAYLOAD,
+            timeout=REQUEST_TIMEOUT,
         )
         # Get session cookie
         self.session.post(
-            f"{BASE_URI}{LOGIN_PATH}", json=EXISTING_USER_LOGIN_PAYLOAD, timeout=REQUEST_TIMEOUT
+            f"{BASE_URI}{LOGIN_PATH}",
+            json=EXISTING_USER_LOGIN_PAYLOAD,
+            timeout=REQUEST_TIMEOUT,
         )
         # Get CSRF token
         response = self.session.get(f"{BASE_URI}{CSRF_PATH}", timeout=REQUEST_TIMEOUT)
@@ -78,11 +86,17 @@ class TestAPI(unittest.TestCase):
     def post_test(self, path, payload, status, use_session=False, headers=None):
         if use_session:
             response = self.session.post(
-                f"{BASE_URI}{path}", json=payload, headers=headers, timeout=REQUEST_TIMEOUT
+                f"{BASE_URI}{path}",
+                json=payload,
+                headers=headers,
+                timeout=REQUEST_TIMEOUT,
             )
         else:
             response = requests.post(
-                f"{BASE_URI}{path}", json=payload, headers=headers, timeout=REQUEST_TIMEOUT
+                f"{BASE_URI}{path}",
+                json=payload,
+                headers=headers,
+                timeout=REQUEST_TIMEOUT,
             )
         self.assertEqual(response.status_code, status)
         return response
@@ -90,11 +104,17 @@ class TestAPI(unittest.TestCase):
     def get_test(self, path, params, status, use_session=False, headers=None):
         if use_session:
             response = self.session.get(
-                f"{BASE_URI}{path}", params=params, headers=headers, timeout=REQUEST_TIMEOUT
+                f"{BASE_URI}{path}",
+                params=params,
+                headers=headers,
+                timeout=REQUEST_TIMEOUT,
             )
         else:
             response = requests.get(
-                f"{BASE_URI}{path}", params=params, headers=headers, timeout=REQUEST_TIMEOUT
+                f"{BASE_URI}{path}",
+                params=params,
+                headers=headers,
+                timeout=REQUEST_TIMEOUT,
             )
         self.assertEqual(response.status_code, status)
         return response
@@ -193,6 +213,7 @@ class TestAPI(unittest.TestCase):
         payload = EXISTING_USER_LOGIN_PAYLOAD
         payload["otp_code"] = pyotp.totp.TOTP(self.otp_secret).now()
         self.post_test(LOGIN_PATH, payload, 200)
+
 
 if __name__ == "__main__":
     unittest.main()

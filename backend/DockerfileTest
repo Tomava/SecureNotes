@@ -1,0 +1,21 @@
+FROM python:3.12-slim
+
+RUN useradd -m -u 1000 scripter
+
+RUN mkdir /app
+
+USER scripter
+
+WORKDIR /app
+
+COPY *.py ./
+COPY .env ./
+COPY requirements.txt ./
+ADD tests/*.py ./tests/
+#ADD tests/.env ./tests/.env
+ADD tests/*requirements.txt ./tests/requirements.txt
+
+RUN pip install -r requirements.txt
+RUN pip install -r tests/requirements.txt
+
+CMD ["python3", "-m", "pytest", "tests/tests.py", "-p", "no:cacheprovider", "-v"]

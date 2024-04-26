@@ -6,7 +6,8 @@ load_dotenv()
 
 ENVIRONMENT = os.getenv("ENVIRONMENT")
 SECRET_KEY = os.getenv("SECRET_KEY")
-PORT = os.getenv("PORT")
+PORT = os.getenv("PORT") or 5000
+TEST_HOST = os.getenv("TEST_HOST") or "localhost"
 CREDENTIALS_DB = "credentials.db"
 USERS_TABLE = "users"
 TOKENS_TABLE = "tokens"
