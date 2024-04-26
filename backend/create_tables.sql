@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS users(
     encryption_salt             CHAR(29)             NOT NULL,
     encrypted_encryption_key    CHAR(128)            NOT NULL,
     password_change_time        INTEGER              NOT NULL,
-    otp_code                    CHAR(32)
+    otp_secret                  CHAR(32)
 );
 -- INSERT INTO users(
 --     id,

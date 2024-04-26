@@ -141,10 +141,10 @@ def otp():
         try:
             res = get_database_result(
                 CREDENTIALS_DB,
-                f"""SELECT otp_code
+                f"""SELECT otp_secret
                     FROM {USERS_TABLE}
                     WHERE id = %s
-                    AND NOT (otp_code IS NULL OR otp_code = '');""",
+                    AND NOT (otp_secret IS NULL OR otp_secret = '');""",
                 (current_user_id,),
                 fetch=True,
             )
@@ -159,7 +159,7 @@ def otp():
             get_database_result(
                 CREDENTIALS_DB,
                 f"""UPDATE {USERS_TABLE}
-                    SET otp_code = NULL
+                    SET otp_secret = NULL
                     WHERE id = %s;""",
                 (
                     current_user_id,
@@ -174,7 +174,7 @@ def otp():
             get_database_result(
                 CREDENTIALS_DB,
                 f"""UPDATE {USERS_TABLE}
-                    SET otp_code = %s
+                    SET otp_secret = %s
                     WHERE id = %s;""",
                 (
                     otp_secret,
@@ -326,7 +326,7 @@ def login():
     try:
         result = get_database_result(
             CREDENTIALS_DB,
-            f"SELECT id, login_hash, encryption_salt, encrypted_encryption_key, otp_code FROM {USERS_TABLE} WHERE username = (%s)",
+            f"SELECT id, login_hash, encryption_salt, encrypted_encryption_key, otp_secret FROM {USERS_TABLE} WHERE username = (%s)",
             (username,),
             fetch=True,
         )
@@ -340,14 +340,14 @@ def login():
         hash_password(str(uuid.uuid4()))
         return jsonify(messages.INVALID_CREDENTIALS_ERROR), 401
 
-    user_id, login_hash, encryption_salt, encrypted_encryption_key, otp_code = result
+    user_id, login_hash, encryption_salt, encrypted_encryption_key, otp_secret = result
     peppered_front_login_hash = f"{front_login_hash}{DATABASE_PEPPER}"
 
     if not verify_password(login_hash, peppered_front_login_hash):
         return jsonify(messages.INVALID_CREDENTIALS_ERROR), 401
 
-    if otp_code is not None:
-        totp = pyotp.TOTP(otp_code)
+    if otp_secret is not None:
+        totp = pyotp.TOTP(otp_secret)
         if (
             not request_otp_code
             or len(request_otp_code) != 6
