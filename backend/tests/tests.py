@@ -1,3 +1,4 @@
+import base64
 import time
 import pyotp
 import requests
@@ -13,7 +14,7 @@ LOGOUT_PATH = "/logout"
 NOTES_PATH = "/notes"
 CSRF_PATH = "/csrf"
 OTP_PATH = "/otp"
-NON_EXISTING_USER_HASH_PARAMS = {"username": "test3"}
+NON_EXISTING_USER_HASH_PARAMS = {"username": "test2"}
 EXISTING_USER_HASH_PARAMS = {"username": "test"}
 EXISTING_USER_SIGNUP_PAYLOAD = {
     "username": "test",
@@ -34,11 +35,12 @@ EXISTING_USER_LOGIN_PAYLOAD = {
     "front_login_hash": "$2a$10$siW6Yeb4y1YMPMWC5tjM8.x3HpsdUHm6tqpzREuBTiQ2pUAzx1Mfa",
 }
 NON_EXISTING_USER_LOGIN_PAYLOAD = {
-    "username": "test3",
+    "username": "test2",
     "front_login_hash": "$2a$10$siW6Yeb4y1YMPMWC5tjM8.x3HpsdUHm6tqpzREuBTiQ2pUAzx1Mfa",
 }
 NOTE_PAYLOAD = {"note_title": "EjRWeA==", "note_body": "EjRWeA=="}
 REQUEST_TIMEOUT = 10
+TRUNCATE_ALL_TABLES = f"TRUNCATE {USERS_TABLE} CASCADE;"
 
 
 class TestBackend(unittest.TestCase):
@@ -59,6 +61,7 @@ class TestAPI(unittest.TestCase):
         time.sleep(3)
 
     def setUp(self):
+        main.get_database_result("", TRUNCATE_ALL_TABLES, ())
         self.session = requests.Session()
         requests.post(
             f"{BASE_URI}/signup",
@@ -126,12 +129,35 @@ class TestAPI(unittest.TestCase):
         self.get_test(HASH_PATH, EXISTING_USER_HASH_PARAMS, 200)
 
     def test_signup_non_existing_user(self):
-        # TODO: Uncomment
-        # self.post_test(SIGNUP_PATH, NON_EXISTING_USER_SIGNUP_PAYLOAD, 201)
-        pass
+        self.post_test(SIGNUP_PATH, NON_EXISTING_USER_SIGNUP_PAYLOAD, 201)
 
     def test_signup_existing_user(self):
         self.post_test(SIGNUP_PATH, EXISTING_USER_SIGNUP_PAYLOAD, 409)
+
+    def test_signup_too_long_username(self):
+        payload = NON_EXISTING_USER_SIGNUP_PAYLOAD.copy()
+        payload["username"] = "a" * (USERNAME_MAX_LEN + 1)
+        self.post_test(SIGNUP_PATH, payload, 400)
+
+    def test_signup_invalid_front_login_hash(self):
+        payload = NON_EXISTING_USER_SIGNUP_PAYLOAD.copy()
+        payload["front_login_hash"] = "a" * 1000
+        self.post_test(SIGNUP_PATH, payload, 400)
+
+    def test_signup_invalid_front_login_salt(self):
+        payload = NON_EXISTING_USER_SIGNUP_PAYLOAD.copy()
+        payload["front_login_salt"] = "a" * 1000
+        self.post_test(SIGNUP_PATH, payload, 400)
+
+    def test_signup_invalid_encryption_salt(self):
+        payload = NON_EXISTING_USER_SIGNUP_PAYLOAD.copy()
+        payload["encryption_salt"] = "a" * 1000
+        self.post_test(SIGNUP_PATH, payload, 400)
+
+    def test_signup_invalid_encrypted_encryption_key(self):
+        payload = NON_EXISTING_USER_SIGNUP_PAYLOAD.copy()
+        payload["encrypted_encryption_key"] = "a" * 1000
+        self.post_test(SIGNUP_PATH, payload, 400)
 
     def test_login_non_existing_user(self):
         self.post_test(LOGIN_PATH, NON_EXISTING_USER_LOGIN_PAYLOAD, 401)
@@ -163,6 +189,25 @@ class TestAPI(unittest.TestCase):
 
     def test_notes_post_with_session_with_csrf(self):
         self.post_test(NOTES_PATH, NOTE_PAYLOAD, 201, True, self.headers)
+
+    # def test_notes_post_too_many(self):
+    #     for _ in range(MAX_NOTES):
+    #         self.post_test(NOTES_PATH, NOTE_PAYLOAD, 201, True, self.headers)
+    #     self.post_test(NOTES_PATH, NOTE_PAYLOAD, 413, True, self.headers)
+
+    def test_too_large_note(self):
+        payload = NOTE_PAYLOAD.copy()
+        payload["note_title"] = ""
+        payload["note_body"] = base64.b64encode(bytearray([1] * (MAX_SIZE))).decode("utf-8")
+        self.post_test(NOTES_PATH, payload, 201, True, self.headers)
+        payload["note_body"] = base64.b64encode(bytearray([1] * (MAX_SIZE + 1))).decode("utf-8")
+        self.post_test(NOTES_PATH, payload, 413, True, self.headers)
+
+        payload["note_body"] = ""
+        payload["note_title"] = base64.b64encode(bytearray([1] * (MAX_SIZE))).decode("utf-8")
+        self.post_test(NOTES_PATH, payload, 201, True, self.headers)
+        payload["note_title"] = base64.b64encode(bytearray([1] * (MAX_SIZE + 1))).decode("utf-8")
+        self.post_test(NOTES_PATH, payload, 413, True, self.headers)
 
     def test_logout_without_session(self):
         self.post_test(LOGOUT_PATH, {}, 400)
@@ -198,7 +243,7 @@ class TestAPI(unittest.TestCase):
     def test_login_existing_user_without_correct_otp(self):
         # Add OTP
         self.test_otp_post_with_session_with_csrf()
-        payload = EXISTING_USER_LOGIN_PAYLOAD
+        payload = EXISTING_USER_LOGIN_PAYLOAD.copy()
         payload["otp_code"] = "9999999"
         self.post_test(LOGIN_PATH, payload, 401)
 
@@ -210,9 +255,13 @@ class TestAPI(unittest.TestCase):
     def test_login_existing_user_with_correct_otp(self):
         # Add OTP
         self.test_otp_post_with_session_with_csrf()
-        payload = EXISTING_USER_LOGIN_PAYLOAD
+        payload = EXISTING_USER_LOGIN_PAYLOAD.copy()
         payload["otp_code"] = pyotp.totp.TOTP(self.otp_secret).now()
         self.post_test(LOGIN_PATH, payload, 200)
+
+    def test_invalid_csrf(self):
+        headers = {"X-CSRF-Token": "abcd"}
+        self.post_test(NOTES_PATH, NOTE_PAYLOAD, 400, True, headers)
 
 
 if __name__ == "__main__":
